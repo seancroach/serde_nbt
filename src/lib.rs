@@ -1,14 +1,10 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+extern crate alloc;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod char;
+pub mod str;
+mod value;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use value::{
+    NbtByte, NbtByteArray, NbtCompound, NbtId, NbtIntArray, NbtList, NbtLongArray, NbtString,
+    NbtValue, QuoteKind,
+};
