@@ -70,10 +70,12 @@ features = ["runtime-rng"]
 version = "1"
 optional = true
 
-# Even though we don't use hashbrown directly when preserve_order is enabled,
-# indexmap does, so it's not unused.
+# We explicitly add these features to force their performance uplifts given that
+# indexmap does not enable them by default.
 [dependencies.hashbrown]
 version = "0.13"
+default-features = false
+features = ["ahash", "inline-more"]
 
 # This is what backs the "preserve_order" feature.
 [dependencies.indexmap]
