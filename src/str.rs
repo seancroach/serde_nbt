@@ -1,25 +1,28 @@
 //! TODO
 
-use crate::{char, value::QuoteKind};
+use crate::char;
 
-use core::{iter::FusedIterator, str::Chars};
+use core::{
+    fmt::{self, Formatter, Write},
+    iter::FusedIterator,
+    str::Chars,
+};
 
 /// TODO
 #[must_use]
+#[derive(Debug, Clone)]
 pub struct EscapeJava<'a> {
     chars: Chars<'a>,
     iter: Option<char::EscapeJava>,
-    quotes: QuoteKind,
 }
 
 impl<'a> EscapeJava<'a> {
     /// TODO
     #[inline]
-    pub fn new(s: &'a str, quotes: QuoteKind) -> Self {
+    pub fn new(s: &'a str) -> Self {
         EscapeJava {
             chars: s.chars(),
             iter: None,
-            quotes,
         }
     }
 }
@@ -31,7 +34,7 @@ impl<'a> Iterator for EscapeJava<'a> {
         self.iter.as_mut().and_then(Iterator::next).or_else(|| {
             let mut next = None;
             if let Some(c) = self.chars.next() {
-                let mut iter = char::EscapeJava::new(c, self.quotes);
+                let mut iter = char::EscapeJava::new(c);
                 next = iter.next();
                 self.iter = Some(iter);
             }
@@ -47,8 +50,18 @@ impl<'a> Iterator for EscapeJava<'a> {
 
 impl<'a> FusedIterator for EscapeJava<'a> {}
 
+impl fmt::Display for EscapeJava<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for c in self.clone() {
+            f.write_char(c)?;
+        }
+        Ok(())
+    }
+}
+
 /// TODO
 #[must_use]
+#[derive(Debug, Clone)]
 pub struct EscapeJavaUnicode<'a> {
     // The intention was to create a named function like
     // core::str::EscapeUnicode does, but implementing `Fn` manually is unstable
@@ -90,3 +103,12 @@ impl<'a> Iterator for EscapeJavaUnicode<'a> {
 }
 
 impl<'a> FusedIterator for EscapeJavaUnicode<'a> {}
+
+impl fmt::Display for EscapeJavaUnicode<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for c in self.clone() {
+            f.write_char(c)?;
+        }
+        Ok(())
+    }
+}

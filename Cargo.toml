@@ -40,7 +40,7 @@ preserve_order = ["dep:indexmap"]
 
 # Enables the SNBT format. No binary format is required for this feature to
 # work.
-snbt = []
+snbt = ["dep:arrayvec", "dep:ryu"]
 
 # Enables the use of the standard library to add no_std compatability for those
 # who need it.
@@ -64,6 +64,11 @@ binary = []
 version = "0.8"
 default-features = false
 features = ["runtime-rng"]
+
+[dependencies.arrayvec]
+version = "0.7"
+optional = true
+default-features = false
 
 # The backing implementation of the "compression" feature.
 [dependencies.flate2]
@@ -92,6 +97,10 @@ version = "1"
 # LEB128 encoding/decoding for use with the bedrock_network feature.
 [dependencies.mini_leb128]
 version = "0.1"
+optional = true
+
+[dependencies.ryu]
+version = "1"
 optional = true
 
 # "I wonder what this is for," he lied, like a liar.

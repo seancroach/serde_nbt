@@ -1,8 +1,9 @@
 //! TODO
 
-use crate::value::QuoteKind;
-
-use core::iter::FusedIterator;
+use core::{
+    fmt::{self, Formatter, Write},
+    iter::FusedIterator,
+};
 
 /// TODO
 #[must_use]
@@ -14,15 +15,14 @@ pub struct EscapeJava {
 impl EscapeJava {
     /// TODO
     #[inline]
-    pub fn new(c: char, quotes: QuoteKind) -> Self {
+    pub fn new(c: char) -> Self {
         let init = match c {
             '\x08' => EscapeJavaState::Backslash('b'),
             '\x09' => EscapeJavaState::Backslash('t'),
             '\x0A' => EscapeJavaState::Backslash('n'),
             '\x0C' => EscapeJavaState::Backslash('f'),
             '\x0D' => EscapeJavaState::Backslash('r'),
-            '\x22' if quotes == QuoteKind::Double => EscapeJavaState::Backslash('"'),
-            '\x27' if quotes == QuoteKind::Single => EscapeJavaState::Backslash('\''),
+            '\x22' => EscapeJavaState::Backslash('"'),
             '\x20'..='\x7E' => EscapeJavaState::Char(c),
             _ => EscapeJavaState::Unicode(EscapeJavaUnicode::new(c)),
         };
@@ -86,6 +86,15 @@ impl ExactSizeIterator for EscapeJava {
 }
 
 impl FusedIterator for EscapeJava {}
+
+impl fmt::Display for EscapeJava {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for c in self.clone() {
+            f.write_char(c)?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 enum EscapeJavaState {
@@ -187,6 +196,15 @@ impl ExactSizeIterator for EscapeJavaUnicode {
 }
 
 impl FusedIterator for EscapeJavaUnicode {}
+
+impl fmt::Display for EscapeJavaUnicode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for c in self.clone() {
+            f.write_char(c)?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 enum EscapeUnicodeState {
