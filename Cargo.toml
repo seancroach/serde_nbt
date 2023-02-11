@@ -10,9 +10,9 @@ edition = "2021"
 
 [features]
 
-# By default serde_nbt will support using the standard library to encode and
-# decode only the Minecraft: Java Edition's specification of NBT to match the
-# baseline functionality of other NBT libraries.
+# By default serde_nbt supports using the standard library to encode and decode
+# only the Minecraft: Java Edition's specification of NBT to match the baseline
+# functionality of other NBT libraries.
 default = ["compression", "java"]
 
 # Enables the Minecraft: Bedrock Edition's little-endian specification of NBT
@@ -113,7 +113,7 @@ features = ["alloc"]
 # on top of. Enabling the "std" feature for zc_io is what enables I/O reader and
 # writer support for this package.
 [dependencies.zc_io]
-version = "0.1"
+version = "0.2"
 default-features = false
 
 # A zigzag encoding and decoding library used for the Minecraft: Bedrock
@@ -121,6 +121,14 @@ default-features = false
 [dependencies.zende]
 version = "0.1"
 optional = true
+
+################################################################################
+# Developer Dependencies
+################################################################################
+
+[dev-dependencies.serde]
+version = "1"
+features = ["derive"]
 
 ################################################################################
 # Miscellaneous Metadata

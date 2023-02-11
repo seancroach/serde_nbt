@@ -21,29 +21,26 @@ impl Error {
     #[must_use]
     #[cold]
     #[track_caller]
-    pub fn new<T>(category: Category, msg: T) -> Self
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        Self::with_position(category, msg, Position::None)
-    }
-
-    #[must_use]
-    #[cold]
-    #[track_caller]
-    pub(crate) fn with_position<T>(category: Category, msg: T, at: Position) -> Self
+    pub fn new<T>(category: Category, message: T) -> Self
     where
         T: Into<Cow<'static, str>>,
     {
         Error {
             inner: Box::new(Inner {
-                message: msg.into(),
+                message: message.into(),
                 category,
-                position: at,
+                position: Position::None,
                 #[cfg(feature = "std")]
                 backtrace: Backtrace::capture(),
             }),
         }
+    }
+
+    #[cold]
+    #[track_caller]
+    pub(crate) fn attach_position(&mut self, position: Position) {
+        debug_assert!(self.inner.position == Position::None);
+        self.inner.position = position;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -51,11 +48,18 @@ impl Error {
     ////////////////////////////////////////////////////////////////////////////
 
     #[cold]
-    pub(crate) fn invalid_key(display_type: &str, at: Position) -> Self {
-        Error::with_position(
+    pub(crate) fn invalid_key(display_type: &str) -> Self {
+        Error::new(
             Category::InvalidInput,
-            format!("`serde_nbt` does not support {display_type} keys"),
-            at,
+            format!("`NBT does not support {display_type} keys"),
+        )
+    }
+
+    #[cold]
+    pub(crate) fn invalid_type(display_type: &str) -> Self {
+        Error::new(
+            Category::InvalidInput,
+            format!("NBT does not support {display_type} values"),
         )
     }
 }
@@ -170,4 +174,11 @@ pub type Path = Vec<PathSegment>;
 pub enum PathSegment {
     Identifier(Cow<'static, str>),
     Index(u64),
+}
+
+impl From<&'static str> for PathSegment {
+    #[inline]
+    fn from(value: &'static str) -> Self {
+        PathSegment::Identifier(Cow::Borrowed(value))
+    }
 }
