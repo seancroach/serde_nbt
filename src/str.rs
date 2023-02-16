@@ -8,6 +8,11 @@ use core::{
     str::Chars,
 };
 
+pub(crate) fn needs_escaped(s: &str) -> bool {
+    !s.bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.' | b'+'))
+}
+
 /// TODO
 #[must_use]
 #[derive(Debug, Clone)]

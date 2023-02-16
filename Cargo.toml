@@ -35,16 +35,13 @@ java = ["binary"]
 # https://minecraft.fandom.com/wiki/NBT_path_format
 path = ["snbt"]
 
-# Backs the NBT compound data structure with an IndexMap instead of a BTreeMap.
-preserve_order = ["dep:indexmap"]
-
 # Enables the SNBT format. No binary format is required for this feature to
 # work.
 snbt = ["dep:arrayvec", "dep:ryu"]
 
 # Enables the use of the standard library to add no_std compatability for those
 # who need it.
-std = ["indexmap?/std", "serde/std", "zc_io/std"]
+std = ["indexmap/std", "serde/std", "zc_io/std"]
 
 ################################################################################
 # Internal Features
@@ -85,7 +82,6 @@ features = ["ahash", "inline-more"]
 # This is what backs the "preserve_order" feature.
 [dependencies.indexmap]
 version = "1"
-optional = true
 default-features = false
 features = ["serde"]
 
