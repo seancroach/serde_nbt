@@ -1,6 +1,9 @@
 //! TODO
 
+#![deny(clippy::pedantic)]
+
 extern crate alloc;
+extern crate core;
 
 pub mod char;
 pub mod de;
@@ -8,13 +11,13 @@ pub mod error;
 pub mod ser;
 pub mod str;
 mod value;
-pub mod snbt;
 
 pub use error::{Error, Result};
-pub use value::TypeId;
+pub use ser::to_value;
+pub use value::{Byte, ByteArray, Compound, Id, IntArray, List, LongArray, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ArrayBrand {
+pub(crate) enum ArrayBrand {
     Byte,
     Int,
     Long,
@@ -41,20 +44,55 @@ impl ArrayBrand {
     }
 
     #[must_use]
-    pub(crate) const fn id(self) -> TypeId {
+    pub(crate) const fn id(self) -> Id {
         match self {
-            ArrayBrand::Byte => TypeId::ByteArray,
-            ArrayBrand::Int => TypeId::IntArray,
-            ArrayBrand::Long => TypeId::LongArray,
+            ArrayBrand::Byte => Id::ByteArray,
+            ArrayBrand::Int => Id::IntArray,
+            ArrayBrand::Long => Id::LongArray,
         }
     }
 
     #[must_use]
-    pub(crate) const fn element_id(self) -> TypeId {
+    pub(crate) const fn element_id(self) -> Id {
         match self {
-            ArrayBrand::Byte => TypeId::Byte,
-            ArrayBrand::Int => TypeId::Int,
-            ArrayBrand::Long => TypeId::Long,
+            ArrayBrand::Byte => Id::Byte,
+            ArrayBrand::Int => Id::Int,
+            ArrayBrand::Long => Id::Long,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn to_seq_kind(self) -> SeqKind {
+        match self {
+            ArrayBrand::Byte => SeqKind::ByteArray,
+            ArrayBrand::Int => SeqKind::IntArray,
+            ArrayBrand::Long => SeqKind::LongArray,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeqKind {
+    ByteArray,
+    IntArray,
+    LongArray,
+    List(Id),
+}
+
+impl SeqKind {
+    #[must_use]
+    pub const fn element_id(self) -> Id {
+        match self {
+            SeqKind::ByteArray => Id::Byte,
+            SeqKind::IntArray => Id::Int,
+            SeqKind::LongArray => Id::Long,
+            SeqKind::List(id) => id,
+        }
+    }
+}
+
+impl Default for SeqKind {
+    fn default() -> Self {
+        SeqKind::List(Id::End)
     }
 }
