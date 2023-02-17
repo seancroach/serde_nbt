@@ -1,23 +1,15 @@
+use super::{Emit, EmitMap, EmitSeq};
+
 use crate::{
-    error::{Error, Path, Result},
-    value::{Byte, Compound, Id, List, Value},
+    error::{Error, Path, Result, ZcResultExt},
+    value::Id,
     ArrayBrand, SeqKind,
 };
 
 use alloc::borrow::Cow;
 use core::{fmt::Display, str};
 
-use ahash::RandomState;
 use serde::{ser, Serialize};
-
-pub fn to_value<T>(value: &T, is_human_readable: bool) -> Result<Value>
-where
-    T: ?Sized + Serialize,
-{
-    let mut ser = Serializer::new(ValueEmitter::new(is_human_readable));
-    let value = value.serialize(&mut ser)?;
-    Ok(value)
-}
 
 pub struct Serializer<E: Emit> {
     emitter: E,
@@ -25,11 +17,15 @@ pub struct Serializer<E: Emit> {
 }
 
 impl<E: Emit> Serializer<E> {
-    fn new(emitter: E) -> Self {
+    pub(crate) fn new(emitter: E) -> Self {
         Serializer {
             emitter,
             path: Path::new(),
         }
+    }
+
+    pub(crate) fn handle<T>(&mut self, result: zc_io::Result<T>) -> Result<T> {
+        result.attach_path(&mut self.path)
     }
 }
 
@@ -49,23 +45,23 @@ where
     type SerializeStructVariant = StructVariantSerializer<'a, E>;
 
     fn serialize_bool(self, value: bool) -> Result<Self::Ok> {
-        self.emitter.emit_bool(&mut self.path, value)
+        self.emitter.emit_bool(value).attach_path(&mut self.path)
     }
 
     fn serialize_i8(self, value: i8) -> Result<Self::Ok> {
-        self.emitter.emit_i8(&mut self.path, value)
+        self.emitter.emit_i8(value).attach_path(&mut self.path)
     }
 
     fn serialize_i16(self, value: i16) -> Result<Self::Ok> {
-        self.emitter.emit_i16(&mut self.path, value)
+        self.emitter.emit_i16(value).attach_path(&mut self.path)
     }
 
     fn serialize_i32(self, value: i32) -> Result<Self::Ok> {
-        self.emitter.emit_i32(&mut self.path, value)
+        self.emitter.emit_i32(value).attach_path(&mut self.path)
     }
 
     fn serialize_i64(self, value: i64) -> Result<Self::Ok> {
-        self.emitter.emit_i64(&mut self.path, value)
+        self.emitter.emit_i64(value).attach_path(&mut self.path)
     }
 
     fn serialize_i128(self, _value: i128) -> Result<Self::Ok> {
@@ -93,11 +89,11 @@ where
     }
 
     fn serialize_f32(self, value: f32) -> Result<Self::Ok> {
-        self.emitter.emit_f32(&mut self.path, value)
+        self.emitter.emit_f32(value).attach_path(&mut self.path)
     }
 
     fn serialize_f64(self, value: f64) -> Result<Self::Ok> {
-        self.emitter.emit_f64(&mut self.path, value)
+        self.emitter.emit_f64(value).attach_path(&mut self.path)
     }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
@@ -106,7 +102,7 @@ where
     }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        self.emitter.emit_str(&mut self.path, value)
+        self.emitter.emit_str(value).attach_path(&mut self.path)
     }
 
     fn serialize_bytes(self, _value: &[u8]) -> Result<Self::Ok> {
@@ -175,7 +171,7 @@ where
         self,
         name: &'static str,
         len: usize,
-    ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
+    ) -> Result<Self::SerializeTupleStruct> {
         let brand = ArrayBrand::from_str(name);
         Ok(SeqSerializer::new(self, brand, Some(len)))
     }
@@ -186,23 +182,23 @@ where
         _variant_index: u32,
         variant: &'static str,
         len: usize,
-    ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
-        let mut outer = self.emitter.emit_map(&mut self.path, Some(1))?;
-
-        self.path.enter_scope(variant);
-
-        outer.begin_key(&mut self.path, Id::Compound, true)?;
-        outer.emit_key(&mut self.path, variant)?;
-        outer.end_key(&mut self.path)?;
-
-        outer.begin_value(&mut self.path)?;
+    ) -> Result<Self::SerializeTupleVariant> {
+        let mut outer = self.emitter.emit_map(Some(1)).attach_path(&mut self.path)?;
 
         let brand = ArrayBrand::from_str(name);
+        let id = brand.map_or(Id::List, ArrayBrand::id);
+
+        outer.begin_key(id).attach_path(&mut self.path)?;
+        outer.emit_key(variant).attach_path(&mut self.path)?;
+        outer.end_key().attach_path(&mut self.path)?;
+
+        outer.begin_value().attach_path(&mut self.path)?;
+
         Ok(TupleVariantSerializer::new(self, outer, brand, Some(len)))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        let map = self.emitter.emit_map(&mut self.path, len)?;
+        let map = self.emitter.emit_map(len).attach_path(&mut self.path)?;
         Ok(MapSerializer::new(self, map))
     }
 
@@ -217,17 +213,20 @@ where
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        let mut outer = self.emitter.emit_map(&mut self.path, Some(1))?;
+        let mut outer = self.emitter.emit_map(Some(1)).attach_path(&mut self.path)?;
 
         self.path.enter_scope(variant);
 
-        outer.begin_key(&mut self.path, Id::Compound, true)?;
-        outer.emit_key(&mut self.path, variant)?;
-        outer.end_key(&mut self.path)?;
+        outer.begin_key(Id::Compound).attach_path(&mut self.path)?;
+        outer.emit_key(variant).attach_path(&mut self.path)?;
+        outer.end_key().attach_path(&mut self.path)?;
 
-        outer.begin_value(&mut self.path)?;
+        outer.begin_value().attach_path(&mut self.path)?;
 
-        let inner = self.emitter.emit_map(&mut self.path, Some(len))?;
+        let inner = self
+            .emitter
+            .emit_map(Some(len))
+            .attach_path(&mut self.path)?;
         Ok(StructVariantSerializer::new(self, outer, inner))
     }
 
@@ -266,16 +265,19 @@ impl<'a, E: Emit> SeqSerializer<'a, E> {
         }
     }
 
-    fn initialize(&mut self, actual: Id) -> Result<bool> {
+    fn initialize(&mut self, actual: Id) -> Result<()> {
         if let SeqState::Init { brand, len } = self.state {
             let kind = brand.map_or(SeqKind::List(actual), ArrayBrand::to_seq_kind);
-            let seq = self.ser.emitter.emit_seq(&mut self.ser.path, kind, len)?;
+            let seq = self
+                .ser
+                .emitter
+                .emit_seq(kind, len)
+                .attach_path(&mut self.ser.path)?;
             let expected = brand.map_or(actual, ArrayBrand::element_id);
             self.state = SeqState::Rest { seq, expected };
-            Ok(true)
-        } else {
-            Ok(false)
         }
+
+        Ok(())
     }
 }
 
@@ -290,7 +292,7 @@ impl<'a, E: Emit> ser::SerializeSeq for SeqSerializer<'a, E> {
         self.ser.path.enter_element(self.index);
 
         let actual = value.serialize(IdQuery::new(self.ser))?;
-        let first = self.initialize(actual)?;
+        self.initialize(actual)?;
 
         let SeqState::Rest { ref mut seq, expected } = self.state else { unreachable!() };
 
@@ -298,10 +300,11 @@ impl<'a, E: Emit> ser::SerializeSeq for SeqSerializer<'a, E> {
             return Err(Error::invalid_seq(actual, expected, &mut self.ser.path));
         }
 
-        seq.begin_element(&mut self.ser.path, first)?;
+        seq.begin_element().attach_path(&mut self.ser.path)?;
         let value = value.serialize(&mut *self.ser)?;
-        seq.handle_element(&mut self.ser.path, value)?;
-        seq.end_element(&mut self.ser.path)?;
+        seq.handle_element(value)
+            .and_then(|_| seq.end_element())
+            .attach_path(&mut self.ser.path)?;
 
         let current = self.ser.path.leave_element();
         debug_assert_eq!(current, self.index);
@@ -312,7 +315,7 @@ impl<'a, E: Emit> ser::SerializeSeq for SeqSerializer<'a, E> {
     fn end(mut self) -> Result<Self::Ok> {
         self.initialize(Id::End)?;
         let SeqState::Rest { seq, .. } = self.state else { unreachable!() };
-        seq.finish(&mut self.ser.path)
+        seq.finish().attach_path(&mut self.ser.path)
     }
 }
 
@@ -384,14 +387,17 @@ impl<'a, E: Emit> ser::SerializeTupleVariant for TupleVariantSerializer<'a, E> {
     fn end(mut self) -> Result<Self::Ok> {
         self.delegate.initialize(Id::End)?;
         let SeqState::Rest { seq, .. } = self.delegate.state else { unreachable!() };
-        let value = seq.finish(&mut self.delegate.ser.path)?;
 
-        self.map.handle_value(&mut self.delegate.ser.path, value)?;
-        self.map.end_value(&mut self.delegate.ser.path)?;
+        seq.finish()
+            .and_then(|value| {
+                self.map.handle_value(value)?;
+                self.map.end_value()?;
 
-        self.delegate.ser.path.leave_scope();
+                self.delegate.ser.path.leave_scope();
 
-        self.map.finish(&mut self.delegate.ser.path)
+                self.map.finish()
+            })
+            .attach_path(&mut self.delegate.ser.path)
     }
 }
 
@@ -442,16 +448,24 @@ impl<'a, E: Emit> ser::SerializeMap for MapSerializer<'a, E> {
         let id = value.serialize(IdQuery::new(self.ser))?;
         let key = self.ser.path.leave_scope();
 
-        self.map.begin_key(&mut self.ser.path, id, self.first)?;
-        self.map.emit_key(&mut self.ser.path, &key)?;
-        self.map.end_key(&mut self.ser.path)?;
+        self.map
+            .begin_key(id)
+            .and_then(|_| {
+                self.map.emit_key(&key)?;
+                self.map.end_key()?;
 
-        self.ser.path.enter_scope(key);
+                self.ser.path.enter_scope(key);
 
-        self.map.begin_value(&mut self.ser.path)?;
+                self.map.begin_value()
+            })
+            .attach_path(&mut self.ser.path)?;
+
         let output = value.serialize(&mut *self.ser)?;
-        self.map.handle_value(&mut self.ser.path, output)?;
-        self.map.end_value(&mut self.ser.path)?;
+
+        self.map
+            .handle_value(output)
+            .and_then(|_| self.map.end_value())
+            .attach_path(&mut self.ser.path)?;
 
         self.ser.path.leave_scope();
 
@@ -459,7 +473,7 @@ impl<'a, E: Emit> ser::SerializeMap for MapSerializer<'a, E> {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        self.map.finish(&mut self.ser.path)
+        self.map.finish().attach_path(&mut self.ser.path)
     }
 }
 
@@ -475,7 +489,7 @@ impl<'a, E: Emit> ser::SerializeStruct for MapSerializer<'a, E> {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        self.map.finish(&mut self.ser.path)
+        ser::SerializeMap::end(self)
     }
 }
 
@@ -507,234 +521,19 @@ impl<'a, E: Emit> ser::SerializeStructVariant for StructVariantSerializer<'a, E>
     }
 
     fn end(mut self) -> Result<Self::Ok> {
-        let value = self.delegate.map.finish(&mut self.delegate.ser.path)?;
-        self.map.handle_value(&mut self.delegate.ser.path, value)?;
-        self.map.end_value(&mut self.delegate.ser.path)?;
+        self.delegate
+            .map
+            .finish()
+            .and_then(|value| {
+                self.map.handle_value(value)?;
+                self.map.end_value()?;
 
-        self.delegate.ser.path.leave_scope();
+                self.delegate.ser.path.leave_scope();
 
-        self.map.finish(&mut self.delegate.ser.path)
+                self.map.finish()
+            })
+            .attach_path(&mut self.delegate.ser.path)
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub struct ValueEmitter {
-    is_human_readable: bool,
-}
-
-impl ValueEmitter {
-    pub fn new(is_human_readable: bool) -> Self {
-        ValueEmitter { is_human_readable }
-    }
-}
-
-impl Emit for ValueEmitter {
-    type Output = Value;
-
-    type EmitSeq = ValueSeqEmitter;
-    type EmitMap = ValueMapEmitter;
-
-    fn emit_bool(&mut self, _path: &mut Path, value: bool) -> Result<Self::Output> {
-        Ok(Value::Byte(Byte::Bool(value)))
-    }
-
-    fn emit_i8(&mut self, _path: &mut Path, value: i8) -> Result<Self::Output> {
-        Ok(Value::Byte(Byte::I8(value)))
-    }
-
-    fn emit_i16(&mut self, _path: &mut Path, value: i16) -> Result<Self::Output> {
-        Ok(Value::Short(value))
-    }
-
-    fn emit_i32(&mut self, _path: &mut Path, value: i32) -> Result<Self::Output> {
-        Ok(Value::Int(value))
-    }
-
-    fn emit_i64(&mut self, _path: &mut Path, value: i64) -> Result<Self::Output> {
-        Ok(Value::Long(value))
-    }
-
-    fn emit_f32(&mut self, _path: &mut Path, value: f32) -> Result<Self::Output> {
-        Ok(Value::Float(value))
-    }
-
-    fn emit_f64(&mut self, _path: &mut Path, value: f64) -> Result<Self::Output> {
-        Ok(Value::Double(value))
-    }
-
-    fn emit_str(&mut self, _path: &mut Path, value: &str) -> Result<Self::Output> {
-        Ok(Value::String(value.to_string()))
-    }
-
-    fn emit_seq(
-        &mut self,
-        _path: &mut Path,
-        kind: SeqKind,
-        len: Option<usize>,
-    ) -> Result<Self::EmitSeq> {
-        let list = List::with_capacity_and_id(len.unwrap_or_default(), kind.element_id());
-        Ok(ValueSeqEmitter::new(list))
-    }
-
-    fn emit_map(&mut self, _path: &mut Path, len: Option<usize>) -> Result<Self::EmitMap> {
-        let compound =
-            Compound::with_capacity_and_hasher(len.unwrap_or_default(), RandomState::new());
-        Ok(ValueMapEmitter::new(compound))
-    }
-
-    fn is_human_readable(&self) -> bool {
-        self.is_human_readable
-    }
-}
-
-pub struct ValueSeqEmitter {
-    list: List,
-}
-
-impl ValueSeqEmitter {
-    fn new(list: List) -> Self {
-        ValueSeqEmitter { list }
-    }
-}
-
-impl EmitSeq for ValueSeqEmitter {
-    type Output = Value;
-
-    fn begin_element(&mut self, _path: &mut Path, _first: bool) -> Result<()> {
-        Ok(())
-    }
-
-    fn handle_element(&mut self, _path: &mut Path, value: Self::Output) -> Result<()> {
-        self.list.push(value).unwrap();
-        Ok(())
-    }
-
-    fn end_element(&mut self, _path: &mut Path) -> Result<()> {
-        Ok(())
-    }
-
-    fn finish(self, _path: &mut Path) -> Result<Self::Output> {
-        Ok(Value::List(self.list))
-    }
-}
-
-pub struct ValueMapEmitter {
-    compound: Compound,
-    key: Option<String>,
-}
-
-impl ValueMapEmitter {
-    fn new(compound: Compound) -> Self {
-        ValueMapEmitter {
-            compound,
-            key: None,
-        }
-    }
-}
-
-impl EmitMap for ValueMapEmitter {
-    type Output = Value;
-
-    fn begin_key(&mut self, _path: &mut Path, _hint: Id, _first: bool) -> Result<()> {
-        Ok(())
-    }
-
-    fn emit_key(&mut self, _path: &mut Path, key: &str) -> Result<()> {
-        self.key = Some(key.to_string());
-        Ok(())
-    }
-
-    fn end_key(&mut self, _path: &mut Path) -> Result<()> {
-        Ok(())
-    }
-
-    fn begin_value(&mut self, _path: &mut Path) -> Result<()> {
-        Ok(())
-    }
-
-    fn handle_value(&mut self, _path: &mut Path, value: Self::Output) -> Result<()> {
-        self.compound.insert(self.key.take().unwrap(), value);
-        Ok(())
-    }
-
-    fn end_value(&mut self, _path: &mut Path) -> Result<()> {
-        Ok(())
-    }
-
-    fn finish(self, _path: &mut Path) -> Result<Self::Output> {
-        Ok(Value::Compound(self.compound))
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-#[allow(clippy::missing_errors_doc)]
-pub trait Emit: Sized {
-    type Output;
-
-    type EmitSeq: EmitSeq<Output = Self::Output>;
-    type EmitMap: EmitMap<Output = Self::Output>;
-
-    fn emit_bool(&mut self, path: &mut Path, value: bool) -> Result<Self::Output>;
-
-    fn emit_i8(&mut self, path: &mut Path, value: i8) -> Result<Self::Output>;
-
-    fn emit_i16(&mut self, path: &mut Path, value: i16) -> Result<Self::Output>;
-
-    fn emit_i32(&mut self, path: &mut Path, value: i32) -> Result<Self::Output>;
-
-    fn emit_i64(&mut self, path: &mut Path, value: i64) -> Result<Self::Output>;
-
-    fn emit_f32(&mut self, path: &mut Path, value: f32) -> Result<Self::Output>;
-
-    fn emit_f64(&mut self, path: &mut Path, value: f64) -> Result<Self::Output>;
-
-    fn emit_str(&mut self, path: &mut Path, value: &str) -> Result<Self::Output>;
-
-    fn emit_seq(
-        &mut self,
-        path: &mut Path,
-        kind: SeqKind,
-        len: Option<usize>,
-    ) -> Result<Self::EmitSeq>;
-
-    fn emit_map(&mut self, path: &mut Path, len: Option<usize>) -> Result<Self::EmitMap>;
-
-    #[must_use]
-    fn is_human_readable(&self) -> bool;
-}
-
-#[allow(clippy::missing_errors_doc)]
-pub trait EmitSeq {
-    type Output;
-
-    fn begin_element(&mut self, path: &mut Path, first: bool) -> Result<()>;
-
-    fn handle_element(&mut self, path: &mut Path, value: Self::Output) -> Result<()>;
-
-    fn end_element(&mut self, path: &mut Path) -> Result<()>;
-
-    fn finish(self, path: &mut Path) -> Result<Self::Output>;
-}
-
-#[allow(clippy::missing_errors_doc)]
-pub trait EmitMap {
-    type Output;
-
-    fn begin_key(&mut self, path: &mut Path, hint: Id, first: bool) -> Result<()>;
-
-    fn emit_key(&mut self, path: &mut Path, key: &str) -> Result<()>;
-
-    fn end_key(&mut self, path: &mut Path) -> Result<()>;
-
-    fn begin_value(&mut self, path: &mut Path) -> Result<()>;
-
-    fn handle_value(&mut self, path: &mut Path, value: Self::Output) -> Result<()>;
-
-    fn end_value(&mut self, path: &mut Path) -> Result<()>;
-
-    fn finish(self, path: &mut Path) -> Result<Self::Output>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

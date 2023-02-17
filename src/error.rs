@@ -12,20 +12,13 @@ use serde::ser;
 /// TODO
 pub type Result<T> = result::Result<T, Error>;
 
-pub(crate) trait ResultExt<T> {
+pub(crate) trait ZcResultExt<T> {
     fn attach_path(self, path: &mut Path) -> Result<T>;
 }
 
-impl<T> ResultExt<T> for Result<T> {
-    #[inline]
+impl<T> ZcResultExt<T> for zc_io::Result<T> {
     fn attach_path(self, path: &mut Path) -> Result<T> {
-        self.map_err(|mut error| {
-            if error.has_position() {
-                let path = mem::take(path);
-                error.attach_position(path);
-            }
-            error
-        })
+        self.map_err(|error| Error::io_with_path(error, path))
     }
 }
 
@@ -67,27 +60,25 @@ impl Error {
         }
     }
 
-    #[cold]
-    #[inline(never)]
-    #[track_caller]
-    pub(crate) fn has_position(&self) -> bool {
-        self.inner.position == Position::None
-    }
-
-    #[cold]
-    #[inline(never)]
-    #[track_caller]
-    pub(crate) fn attach_position<T>(&mut self, position: T)
-    where
-        T: Into<Position>,
-    {
-        debug_assert!(!self.has_position());
-        self.inner.position = position.into();
-    }
-
     ////////////////////////////////////////////////////////////////////////////
     // Error constructors
     ////////////////////////////////////////////////////////////////////////////
+
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn io_with_path(error: zc_io::Error, path: &mut Path) -> Self {
+        let position = Position::Path(mem::take(path));
+
+        #[cfg(feature = "std")]
+        {
+            let category = error.kind().into();
+            Error::with_position(category, error.to_string(), position)
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            Error::with_position(Category::Io, value.to_string(), position)
+        }
+    }
 
     #[cold]
     #[inline(never)]
@@ -117,20 +108,6 @@ impl Error {
             format!("NBT does not support mixed sequences (got {actual}, expected {expected})"),
             Position::Path(mem::take(path)),
         )
-    }
-}
-
-impl From<zc_io::Error> for Error {
-    fn from(value: zc_io::Error) -> Self {
-        #[cfg(feature = "std")]
-        {
-            let category = value.kind().into();
-            Error::new(category, value.to_string())
-        }
-        #[cfg(not(feature = "std"))]
-        {
-            Error::new(Category::Io, value.to_string())
-        }
     }
 }
 

@@ -5,16 +5,18 @@
 extern crate alloc;
 extern crate core;
 
+pub mod binary;
 pub mod char;
 pub mod de;
 pub mod error;
 pub mod ser;
+pub mod snbt;
 pub mod str;
-mod value;
+pub mod value;
 
 pub use error::{Error, Result};
-pub use ser::to_value;
-pub use value::{Byte, ByteArray, Compound, Id, IntArray, List, LongArray, Value};
+pub use snbt::ser::{to_string, to_string_pretty};
+pub use value::{ser::to_value, Byte, ByteArray, Compound, Id, IntArray, List, LongArray, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ArrayBrand {
