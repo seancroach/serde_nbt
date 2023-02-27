@@ -1,101 +1,9 @@
-//! TODO
-
+pub mod map;
 pub mod ser;
-mod map;
 
 use core::fmt;
 
-use ahash::RandomState;
-use indexmap::IndexMap;
-
-/// TODO
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Id {
-    /// TODO
-    End,
-    /// TODO
-    Byte,
-    /// TODO
-    Short,
-    /// TODO
-    Int,
-    /// TODO
-    Long,
-    /// TODO
-    Float,
-    /// TODO
-    Double,
-    /// TODO
-    ByteArray,
-    /// TODO
-    String,
-    /// TODO
-    List,
-    /// TODO
-    Compound,
-    /// TODO
-    IntArray,
-    /// TODO
-    LongArray,
-}
-
-impl Id {
-    /// TODO
-    #[must_use]
-    #[inline]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Id::End => "TAG_End",
-            Id::Byte => "TAG_Byte",
-            Id::Short => "TAG_Short",
-            Id::Int => "TAG_Int",
-            Id::Long => "TAG_Long",
-            Id::Float => "TAG_Float",
-            Id::Double => "TAG_Double",
-            Id::ByteArray => "TAG_Byte_Array",
-            Id::String => "TAG_String",
-            Id::List => "TAG_List",
-            Id::Compound => "TAG_Compound",
-            Id::IntArray => "TAG_Int_Array",
-            Id::LongArray => "TAG_Long_Array",
-        }
-    }
-
-    /// TODO
-    #[must_use]
-    #[inline]
-    pub const fn to_u8(self) -> u8 {
-        match self {
-            Id::End => 0x00,
-            Id::Byte => 0x01,
-            Id::Short => 0x02,
-            Id::Int => 0x03,
-            Id::Long => 0x04,
-            Id::Float => 0x05,
-            Id::Double => 0x06,
-            Id::ByteArray => 0x07,
-            Id::String => 0x08,
-            Id::List => 0x09,
-            Id::Compound => 0x0A,
-            Id::IntArray => 0x0B,
-            Id::LongArray => 0x0C,
-        }
-    }
-}
-
-impl fmt::Display for Id {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-#[derive(Debug)]
-pub enum Byte {
-    Bool(bool),
-    I8(i8),
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Byte(Byte),
     Short(i16),
@@ -113,28 +21,26 @@ pub enum Value {
 
 impl Value {
     #[must_use]
-    #[inline]
-    pub fn id(&self) -> Id {
+    pub const fn kind(&self) -> ValueKind {
         match self {
-            Value::Byte(_) => Id::Byte,
-            Value::Short(_) => Id::Short,
-            Value::Int(_) => Id::Int,
-            Value::Long(_) => Id::Long,
-            Value::Float(_) => Id::Float,
-            Value::Double(_) => Id::Double,
-            Value::ByteArray(_) => Id::ByteArray,
-            Value::String(_) => Id::String,
-            Value::List(_) => Id::List,
-            Value::Compound(_) => Id::Compound,
-            Value::IntArray(_) => Id::IntArray,
-            Value::LongArray(_) => Id::LongArray,
+            Value::Byte(_) => ValueKind::Byte,
+            Value::Short(_) => ValueKind::Short,
+            Value::Int(_) => ValueKind::Int,
+            Value::Long(_) => ValueKind::Long,
+            Value::Float(_) => ValueKind::Float,
+            Value::Double(_) => ValueKind::Double,
+            Value::ByteArray(_) => ValueKind::ByteArray,
+            Value::String(_) => ValueKind::String,
+            Value::List(_) => ValueKind::List,
+            Value::Compound(_) => ValueKind::Compound,
+            Value::IntArray(_) => ValueKind::IntArray,
+            Value::LongArray(_) => ValueKind::LongArray,
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum List {
-    #[default]
     Empty,
     Byte(Vec<Byte>),
     Short(Vec<i16>),
@@ -152,72 +58,37 @@ pub enum List {
 
 impl List {
     #[must_use]
-    #[inline]
-    pub fn with_capacity_and_id(capacity: usize, id: Id) -> Self {
-        match id {
-            Id::End => List::Empty,
-            Id::Byte => List::Byte(Vec::with_capacity(capacity)),
-            Id::Short => List::Short(Vec::with_capacity(capacity)),
-            Id::Int => List::Int(Vec::with_capacity(capacity)),
-            Id::Long => List::Long(Vec::with_capacity(capacity)),
-            Id::Float => List::Float(Vec::with_capacity(capacity)),
-            Id::Double => List::Double(Vec::with_capacity(capacity)),
-            Id::ByteArray => List::ByteArray(Vec::with_capacity(capacity)),
-            Id::String => List::String(Vec::with_capacity(capacity)),
-            Id::List => List::List(Vec::with_capacity(capacity)),
-            Id::Compound => List::Compound(Vec::with_capacity(capacity)),
-            Id::IntArray => List::IntArray(Vec::with_capacity(capacity)),
-            Id::LongArray => List::LongArray(Vec::with_capacity(capacity)),
+    pub fn with_capacity_and_kind(capacity: usize, kind: ValueKind) -> Self {
+        match kind {
+            ValueKind::Byte => List::Byte(Vec::with_capacity(capacity)),
+            ValueKind::Short => List::Short(Vec::with_capacity(capacity)),
+            ValueKind::Int => List::Int(Vec::with_capacity(capacity)),
+            ValueKind::Long => List::Long(Vec::with_capacity(capacity)),
+            ValueKind::Float => List::Float(Vec::with_capacity(capacity)),
+            ValueKind::Double => List::Double(Vec::with_capacity(capacity)),
+            ValueKind::ByteArray => List::ByteArray(Vec::with_capacity(capacity)),
+            ValueKind::String => List::String(Vec::with_capacity(capacity)),
+            ValueKind::List => List::List(Vec::with_capacity(capacity)),
+            ValueKind::Compound => List::Compound(Vec::with_capacity(capacity)),
+            ValueKind::IntArray => List::IntArray(Vec::with_capacity(capacity)),
+            ValueKind::LongArray => List::LongArray(Vec::with_capacity(capacity)),
         }
     }
 
     #[must_use]
     #[inline]
-    pub fn from_value(value: Value) -> Self {
-        match value {
-            Value::Byte(v) => List::Byte(vec![v]),
-            Value::Short(v) => List::Short(vec![v]),
-            Value::Int(v) => List::Int(vec![v]),
-            Value::Long(v) => List::Long(vec![v]),
-            Value::Float(v) => List::Float(vec![v]),
-            Value::Double(v) => List::Double(vec![v]),
-            Value::ByteArray(v) => List::ByteArray(vec![v]),
-            Value::String(v) => List::String(vec![v]),
-            Value::List(v) => List::List(vec![v]),
-            Value::Compound(v) => List::Compound(vec![v]),
-            Value::IntArray(v) => List::IntArray(vec![v]),
-            Value::LongArray(v) => List::LongArray(vec![v]),
-        }
+    pub fn from_kind(kind: ValueKind) -> Self {
+        Self::with_capacity_and_kind(0, kind)
     }
 
     #[must_use]
-    #[inline]
-    pub fn len(&self) -> usize {
-        match self {
-            List::Empty => 0,
-            List::Byte(vec) => vec.len(),
-            List::Short(vec) => vec.len(),
-            List::Int(vec) => vec.len(),
-            List::Long(vec) => vec.len(),
-            List::Float(vec) => vec.len(),
-            List::Double(vec) => vec.len(),
-            List::ByteArray(vec) => vec.len(),
-            List::String(vec) => vec.len(),
-            List::List(vec) => vec.len(),
-            List::Compound(vec) => vec.len(),
-            List::IntArray(vec) => vec.len(),
-            List::LongArray(vec) => vec.len(),
-        }
+    pub fn from_capacity_and_value(value: Value) -> Self {
+        let mut list = Self::with_capacity_and_kind(1, value.kind());
+        unsafe { list.push_unchecked(value) };
+        list
     }
 
     #[must_use]
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    #[must_use]
-    #[inline]
     pub fn id(&self) -> Id {
         match self {
             List::Empty => Id::End,
@@ -236,31 +107,45 @@ impl List {
         }
     }
 
+    #[track_caller]
+    pub unsafe fn push_unchecked(&mut self, value: Value) {
+        debug_assert_eq!(self.id(), value.kind().to_id());
+        self.push_checked(value).unwrap_unchecked()
+    }
+
+    /// TODO
+    ///
+    /// # Panics
+    #[track_caller]
+    pub fn push(&mut self, value: Value) {
+        self.push_checked(value)
+            .expect("the provided `Value` should have been the same datatype as the `List`")
+    }
+
+    /// TODO
+    ///
+    /// # Panics
+    ///
     /// TODO
     ///
     /// # Errors
     ///
     /// TODO
-    pub fn push(&mut self, value: Value) -> Result<(), Value> {
-        if self.is_empty() {
-            *self = List::from_value(value);
-            return Ok(());
-        }
-
+    #[track_caller]
+    pub fn push_checked(&mut self, value: Value) -> Result<(), Value> {
         match (self, value) {
-            (List::Empty, _) => unreachable!(),
-            (List::Byte(vec), Value::Byte(v)) => vec.push(v),
-            (List::Short(vec), Value::Short(v)) => vec.push(v),
-            (List::Int(vec), Value::Int(v)) => vec.push(v),
-            (List::Long(vec), Value::Long(v)) => vec.push(v),
-            (List::Float(vec), Value::Float(v)) => vec.push(v),
-            (List::Double(vec), Value::Double(v)) => vec.push(v),
-            (List::ByteArray(vec), Value::ByteArray(v)) => vec.push(v),
-            (List::String(vec), Value::String(v)) => vec.push(v),
-            (List::List(vec), Value::List(v)) => vec.push(v),
-            (List::Compound(vec), Value::Compound(v)) => vec.push(v),
-            (List::IntArray(vec), Value::IntArray(v)) => vec.push(v),
-            (List::LongArray(vec), Value::LongArray(v)) => vec.push(v),
+            (List::Byte(vec), Value::Byte(value)) => vec.push(value),
+            (List::Short(vec), Value::Short(value)) => vec.push(value),
+            (List::Int(vec), Value::Int(value)) => vec.push(value),
+            (List::Long(vec), Value::Long(value)) => vec.push(value),
+            (List::Float(vec), Value::Float(value)) => vec.push(value),
+            (List::Double(vec), Value::Double(value)) => vec.push(value),
+            (List::ByteArray(vec), Value::ByteArray(value)) => vec.push(value),
+            (List::String(vec), Value::String(value)) => vec.push(value),
+            (List::List(vec), Value::List(value)) => vec.push(value),
+            (List::Compound(vec), Value::Compound(value)) => vec.push(value),
+            (List::IntArray(vec), Value::IntArray(value)) => vec.push(value),
+            (List::LongArray(vec), Value::LongArray(value)) => vec.push(value),
             (_, value) => return Err(value),
         }
 
@@ -268,8 +153,140 @@ impl List {
     }
 }
 
+impl Default for List {
+    /// Returns the default value [`List::Empty`].
+    #[inline]
+    fn default() -> Self {
+        List::Empty
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Byte {
+    Boolean(bool),
+    Integer(i8),
+}
+
+impl Default for Byte {
+    /// Returns the default value [`Byte::Integer(0)`].
+    #[inline]
+    fn default() -> Self {
+        Byte::Integer(0)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ValueKind {
+    Byte,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    ByteArray,
+    String,
+    List,
+    Compound,
+    IntArray,
+    LongArray,
+}
+
+impl ValueKind {
+    #[must_use]
+    #[inline]
+    pub fn to_id(self) -> Id {
+        match self {
+            ValueKind::Byte => Id::Byte,
+            ValueKind::Short => Id::Short,
+            ValueKind::Int => Id::Int,
+            ValueKind::Long => Id::Long,
+            ValueKind::Float => Id::Float,
+            ValueKind::Double => Id::Double,
+            ValueKind::ByteArray => Id::ByteArray,
+            ValueKind::String => Id::String,
+            ValueKind::List => Id::List,
+            ValueKind::Compound => Id::Compound,
+            ValueKind::IntArray => Id::IntArray,
+            ValueKind::LongArray => Id::LongArray,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Id {
+    End,
+    Byte,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    ByteArray,
+    String,
+    List,
+    Compound,
+    IntArray,
+    LongArray,
+}
+
+impl Id {
+    #[must_use]
+    #[inline]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Id::End => "TAG_End",
+            Id::Byte => "TAG_Byte",
+            Id::Short => "TAG_Short",
+            Id::Int => "TAG_Int",
+            Id::Long => "TAG_Long",
+            Id::Float => "TAG_Float",
+            Id::Double => "TAG_Double",
+            Id::ByteArray => "TAG_Byte_Array",
+            Id::String => "TAG_String",
+            Id::List => "TAG_List",
+            Id::Compound => "TAG_Compound",
+            Id::IntArray => "TAG_Int_Array",
+            Id::LongArray => "TAG_Long_Array",
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn to_kind(self) -> Option<ValueKind> {
+        match self {
+            Id::End => None,
+            Id::Byte => Some(ValueKind::Byte),
+            Id::Short => Some(ValueKind::Short),
+            Id::Int => Some(ValueKind::Int),
+            Id::Long => Some(ValueKind::Long),
+            Id::Float => Some(ValueKind::Float),
+            Id::Double => Some(ValueKind::Double),
+            Id::ByteArray => Some(ValueKind::ByteArray),
+            Id::String => Some(ValueKind::String),
+            Id::List => Some(ValueKind::List),
+            Id::Compound => Some(ValueKind::Compound),
+            Id::IntArray => Some(ValueKind::IntArray),
+            Id::LongArray => Some(ValueKind::LongArray),
+        }
+    }
+}
+
+impl fmt::Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Default for Id {
+    /// Returns the default value [`Id::End`].
+    #[inline]
+    fn default() -> Self {
+        Id::End
+    }
+}
+
+pub type Compound = map::Map<String, Value>;
+
 pub type ByteArray = Vec<Byte>;
 pub type IntArray = Vec<i32>;
 pub type LongArray = Vec<i64>;
-
-pub type Compound = IndexMap<String, Value, RandomState>;

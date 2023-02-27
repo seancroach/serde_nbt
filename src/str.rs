@@ -10,7 +10,7 @@ use core::{
 
 pub(crate) fn needs_escaped(s: &str) -> bool {
     !s.bytes()
-        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.' | b'+'))
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.' | b'_'))
 }
 
 /// TODO

@@ -1,430 +1,423 @@
 use super::mutf8;
 
 use crate::{
-    error::{Error, Path, Result},
-    ser::{Emit, EmitMap, EmitSeq},
-    value::Id,
+    emit::{Emit, MapSerializer, SeqSerializer, Serializer},
+    error::{Error, Result, ZcResultExt},
+    value::{Id, ValueKind},
     SeqKind,
 };
 
-use zc_io::{error, Write};
+use serde::{ser, Serialize};
+use zc_io::Write;
 
-use zende::Zigzag;
+////////////////////////////////////////////////////////////////////////////////
 
-pub struct NbtEmitter<E, W>
+pub struct RootSerializer<'header, E, W> {
+    header: Option<&'header str>,
+    supports_list: bool,
+    serializer: Serializer<BinaryEmitter<E>, W>,
+}
+
+impl<E, W> Serializer<BinaryEmitter<E>, W>
 where
     E: Encode,
     W: Write,
 {
+    #[inline]
+    fn encode_id(&mut self, id: Id) -> Result<()> {
+        self.emitter
+            .encoder
+            .encode_id(&mut self.writer, id)
+            .attach_path(&mut self.path)
+    }
+}
+
+impl<'a, 'header, E, W> ser::Serializer for &'a mut RootSerializer<'header, E, W>
+where
+    E: Encode,
+    W: Write,
+{
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = SeqSerializer<'a, BinaryEmitter<E>, W>;
+    type SerializeTuple = SeqSerializer<'a, BinaryEmitter<E>, W>;
+    type SerializeTupleStruct = SeqSerializer<'a, BinaryEmitter<E>, W>;
+    type SerializeTupleVariant = SeqSerializer<'a, BinaryEmitter<E>, W>;
+
+    type SerializeMap = MapSerializer<'a, BinaryEmitter<E>, W>;
+    type SerializeStruct = MapSerializer<'a, BinaryEmitter<E>, W>;
+    type SerializeStructVariant = MapSerializer<'a, BinaryEmitter<E>, W>;
+
+    fn serialize_bool(mut self, _value: bool) -> Result<Self::Ok> {
+        Err(Error::invalid_root("bool", &mut self.serializer.path))
+    }
+
+    fn serialize_i8(mut self, _value: i8) -> Result<Self::Ok> {
+        Err(Error::invalid_root("i8", &mut self.serializer.path))
+    }
+
+    fn serialize_i16(mut self, _value: i16) -> Result<Self::Ok> {
+        Err(Error::invalid_root("i16", &mut self.serializer.path))
+    }
+
+    fn serialize_i32(mut self, _value: i32) -> Result<Self::Ok> {
+        Err(Error::invalid_root("i32", &mut self.serializer.path))
+    }
+
+    fn serialize_i64(mut self, _value: i64) -> Result<Self::Ok> {
+        Err(Error::invalid_root("i64", &mut self.serializer.path))
+    }
+
+    fn serialize_i128(mut self, _value: i128) -> Result<Self::Ok> {
+        Err(Error::invalid_type("i128", &mut self.serializer.path))
+    }
+
+    fn serialize_u8(mut self, _value: u8) -> Result<Self::Ok> {
+        Err(Error::invalid_type("u8", &mut self.serializer.path))
+    }
+
+    fn serialize_u16(mut self, _value: u16) -> Result<Self::Ok> {
+        Err(Error::invalid_type("u16", &mut self.serializer.path))
+    }
+
+    fn serialize_u32(mut self, _value: u32) -> Result<Self::Ok> {
+        Err(Error::invalid_type("u32", &mut self.serializer.path))
+    }
+
+    fn serialize_u64(mut self, _value: u64) -> Result<Self::Ok> {
+        Err(Error::invalid_type("u64", &mut self.serializer.path))
+    }
+
+    fn serialize_u128(mut self, _value: u128) -> Result<Self::Ok> {
+        Err(Error::invalid_type("u128", &mut self.serializer.path))
+    }
+
+    fn serialize_f32(mut self, _value: f32) -> Result<Self::Ok> {
+        Err(Error::invalid_root("f32", &mut self.serializer.path))
+    }
+
+    fn serialize_f64(mut self, _value: f64) -> Result<Self::Ok> {
+        Err(Error::invalid_root("f64", &mut self.serializer.path))
+    }
+
+    fn serialize_char(mut self, _value: char) -> Result<Self::Ok> {
+        Err(Error::invalid_root("char", &mut self.serializer.path))
+    }
+
+    fn serialize_str(mut self, _value: &str) -> Result<Self::Ok> {
+        Err(Error::invalid_root("&str", &mut self.serializer.path))
+    }
+
+    fn serialize_bytes(mut self, _value: &[u8]) -> Result<Self::Ok> {
+        Err(Error::invalid_type("&[u8]", &mut self.serializer.path))
+    }
+
+    #[inline]
+    fn serialize_none(self) -> Result<Self::Ok> {
+        self.serializer.encode_id(Id::End)
+    }
+
+    #[inline]
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    #[inline]
+    fn serialize_unit(self) -> Result<Self::Ok> {
+        self.serializer.encode_id(Id::End)
+    }
+
+    #[inline]
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
+        self.serializer.encode_id(Id::End)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+    ) -> Result<Self::Ok> {
+        Err(Error::invalid_root(
+            "unit variant",
+            &mut self.serializer.path,
+        ))
+    }
+
+    #[inline]
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    #[inline]
+    fn serialize_newtype_variant<T>(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        self.serializer.encode_id(Id::Compound)?;
+        self.serializer
+            .serialize_newtype_variant(name, variant_index, variant, value)
+    }
+
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {}
+
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        todo!()
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        todo!()
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        todo!()
+    }
+
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        todo!()
+    }
+
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        todo!()
+    }
+
+    fn serialize_struct_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        todo!()
+    }
+
+    #[inline]
+    fn is_human_readable(&self) -> bool {
+        self.serializer.emitter.is_human_readable()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct BinaryEmitter<E> {
     encoder: E,
-    writer: W,
 }
 
-impl<E, W> NbtEmitter<E, W>
-where
-    E: Encode,
-    W: Write,
-{
-    fn new(encoder: E, writer: W) -> Self {
-        NbtEmitter { encoder, writer }
+impl<E> BinaryEmitter<E> {
+    #[must_use]
+    #[inline]
+    pub fn new(encoder: E) -> Self {
+        BinaryEmitter { encoder }
     }
 }
 
-impl<'a, E, W> Emit for &'a mut NbtEmitter<E, W>
+impl<E> Emit for BinaryEmitter<E>
 where
     E: Encode,
-    W: Write,
 {
-    type Output = ();
-
-    type EmitSeq = NbtSeqEmitter;
-    type EmitMap = NbtMapEmitter<'a, E, W>;
-
-    fn emit_bool(&mut self, value: bool) -> zc_io::Result<Self::Output> {
-        self.encoder
-            .encode_i8(&mut self.writer, if value { 1 } else { 0 })
+    #[inline]
+    fn emit_bool<W>(&mut self, writer: &mut W, value: bool) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.emit_i8(writer, value.into())
     }
 
-    fn emit_i8(&mut self, value: i8) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_i8(&mut self.writer, value)
+    #[inline]
+    fn emit_i8<W>(&mut self, writer: &mut W, value: i8) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_i8(writer, value)
     }
 
-    fn emit_i16(&mut self, value: i16) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_i16(&mut self.writer, value)
+    #[inline]
+    fn emit_i16<W>(&mut self, writer: &mut W, value: i16) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_i16(writer, value)
     }
 
-    fn emit_i32(&mut self, value: i32) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_i32(&mut self.writer, value)
+    #[inline]
+    fn emit_i32<W>(&mut self, writer: &mut W, value: i32) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_i32(writer, value)
     }
 
-    fn emit_i64(&mut self, value: i64) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_i64(&mut self.writer, value)
+    #[inline]
+    fn emit_i64<W>(&mut self, writer: &mut W, value: i64) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_i64(writer, value)
     }
 
-    fn emit_f32(&mut self, value: f32) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_f32(&mut self.writer, value)
+    #[inline]
+    fn emit_f32<W>(&mut self, writer: &mut W, value: f32) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_f32(writer, value)
     }
 
-    fn emit_f64(&mut self, value: f64) -> zc_io::Result<Self::Output> {
-        self.encoder.encode_f64(&mut self.writer, value)
+    #[inline]
+    fn emit_f64<W>(&mut self, writer: &mut W, value: f64) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_f64(writer, value)
     }
 
-    fn emit_str(&mut self, value: &str) -> zc_io::Result<Self::Output> {
-        let data = mutf8::encode(value);
-        self.encoder
-            .encode_str_len(&mut self.writer, data.len())
-            .and_then(|_| self.writer.write_all(&data))
+    #[inline]
+    fn emit_str<W>(&mut self, writer: &mut W, value: &str) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        let encoded = mutf8::encode(value);
+        self.encoder.encode_str_len(writer, encoded.len())?;
+        writer.write_all(&encoded)
     }
 
-    fn emit_seq(&mut self, kind: SeqKind, len: Option<usize>) -> zc_io::Result<Self::EmitSeq> {
-        let result = if let SeqKind::List(id) = kind {
-            self.encoder.encode_id(&mut self.writer, id)
+    #[inline]
+    fn begin_seq<W>(
+        &mut self,
+        writer: &mut W,
+        kind: SeqKind,
+        len: Option<usize>,
+    ) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        if let SeqKind::List(id) = kind {
+            self.encoder.encode_id(writer, id)?;
+        }
+
+        if let Some(len) = len {
+            self.encoder.encode_seq_len(writer, len)
         } else {
-            Ok(())
-        };
-
-        result.and_then(|_| {
-            if let Some(len) = len {
-                self.encoder.encode_seq_len(&mut self.writer, len)?;
-                Ok(NbtSeqEmitter)
-            } else {
-                Err(zc_io::error!(
-                    InvalidInput,
-                    "NBT does not support unsized sequences"
-                ))
-            }
-        })
+            Err(zc_io::error!(
+                InvalidInput,
+                "`serde_nbt` binary formats do not support unsized sequences"
+            ))
+        }
     }
 
-    fn emit_map(&mut self, _len: Option<usize>) -> zc_io::Result<Self::EmitMap> {
-        Ok(NbtMapEmitter::new(self))
+    #[inline]
+    fn before_element<W>(&mut self, _writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
     }
 
+    #[inline]
+    fn after_element<W>(&mut self, _writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
+    }
+
+    #[inline]
+    fn end_seq<W>(&mut self, _writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
+    }
+
+    #[inline]
+    fn begin_map<W>(&mut self, writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_id(writer, Id::Compound)
+    }
+
+    #[inline]
+    fn before_key<W>(&mut self, writer: &mut W, hint: ValueKind) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_id(writer, hint.to_id())
+    }
+
+    #[inline]
+    fn emit_key<W>(&mut self, writer: &mut W, key: &str) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.emit_str(writer, key)
+    }
+
+    #[inline]
+    fn after_key<W>(&mut self, _riter: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
+    }
+
+    #[inline]
+    fn before_value<W>(&mut self, _writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
+    }
+
+    #[inline]
+    fn after_value<W>(&mut self, _writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        Ok(())
+    }
+
+    #[inline]
+    fn end_map<W>(&mut self, writer: &mut W) -> zc_io::Result<()>
+    where
+        W: ?Sized + Write,
+    {
+        self.encoder.encode_id(writer, Id::End)
+    }
+
+    #[inline]
     fn is_human_readable(&self) -> bool {
         false
     }
 }
 
-pub struct NbtSeqEmitter;
-
-impl EmitSeq for NbtSeqEmitter {
-    type Output = ();
-
-    fn begin_element(&mut self) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn handle_element(&mut self, value: Self::Output) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn end_element(&mut self) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn finish(self) -> zc_io::Result<Self::Output> {
-        Ok(())
-    }
-}
-
-pub struct NbtMapEmitter<'a, E, W>
-where
-    E: Encode,
-    W: Write,
-{
-    emitter: &'a mut NbtEmitter<E, W>,
-}
-
-impl<'a, E, W> NbtMapEmitter<'a, E, W>
-where
-    E: Encode,
-    W: Write,
-{
-    fn new(emitter: &'a mut NbtEmitter<E, W>) -> Self {
-        NbtMapEmitter { emitter }
-    }
-}
-
-impl<'a, E, W> EmitMap for NbtMapEmitter<'a, E, W>
-where
-    E: Encode,
-    W: Write,
-{
-    type Output = ();
-
-    fn begin_key(&mut self, hint: Id) -> zc_io::Result<()> {
-        self.emitter
-            .encoder
-            .encode_id(&mut self.emitter.writer, hint)
-    }
-
-    fn emit_key(&mut self, key: &str) -> zc_io::Result<()> {
-        self.emitter.emit_str(key)
-    }
-
-    fn end_key(&mut self) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn begin_value(&mut self) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn handle_value(&mut self, _value: Self::Output) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn end_value(&mut self) -> zc_io::Result<()> {
-        Ok(())
-    }
-
-    fn finish(self) -> zc_io::Result<Self::Output> {
-        Ok(())
-    }
-}
-
-pub struct JavaEncoder;
-
-impl Encode for JavaEncoder {
-    fn encode_id<W>(&mut self, writer: &mut W, value: Id) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&[value.to_u8()])
-    }
-
-    fn encode_i8<W>(&mut self, writer: &mut W, value: i8) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_i16<W>(&mut self, writer: &mut W, value: i16) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_i32<W>(&mut self, writer: &mut W, value: i32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_i64<W>(&mut self, writer: &mut W, value: i64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_f32<W>(&mut self, writer: &mut W, value: f32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_f64<W>(&mut self, writer: &mut W, value: f64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_be_bytes())
-    }
-
-    fn encode_str_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = u16::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support strings longer than 65,535 bytes"
-            )
-        })?;
-        writer.write_all(&len.to_be_bytes())
-    }
-
-    fn encode_seq_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = i32::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support sequences longer than 2,147,483,647 elements"
-            )
-        })?;
-        self.encode_i32(writer, len)
-    }
-}
-
-pub struct BedrockDiskEncoder;
-
-impl Encode for BedrockDiskEncoder {
-    fn encode_id<W>(&mut self, writer: &mut W, value: Id) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&[value.to_u8()])
-    }
-
-    fn encode_i8<W>(&mut self, writer: &mut W, value: i8) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_i16<W>(&mut self, writer: &mut W, value: i16) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_i32<W>(&mut self, writer: &mut W, value: i32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_i64<W>(&mut self, writer: &mut W, value: i64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_f32<W>(&mut self, writer: &mut W, value: f32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_f64<W>(&mut self, writer: &mut W, value: f64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_str_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = u16::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support strings longer than 65,535 bytes"
-            )
-        })?;
-        writer.write_all(&len.to_le_bytes())
-    }
-
-    fn encode_seq_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = i32::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support sequences longer than 2,147,483,647 elements"
-            )
-        })?;
-        self.encode_i32(writer, len)
-    }
-}
-
-pub struct BedrockNetworkEncoder;
-
-impl Encode for BedrockNetworkEncoder {
-    fn encode_id<W>(&mut self, writer: &mut W, value: Id) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&[value.to_u8()])
-    }
-
-    fn encode_i8<W>(&mut self, writer: &mut W, value: i8) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_i16<W>(&mut self, writer: &mut W, value: i16) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_i32<W>(&mut self, writer: &mut W, value: i32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        mini_leb128::write_u32(writer, value.zigzag())?;
-        Ok(())
-    }
-
-    fn encode_i64<W>(&mut self, writer: &mut W, value: i64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        mini_leb128::write_u64(writer, value.zigzag())?;
-        Ok(())
-    }
-
-    fn encode_f32<W>(&mut self, writer: &mut W, value: f32) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_f64<W>(&mut self, writer: &mut W, value: f64) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        writer.write_all(&value.to_le_bytes())
-    }
-
-    fn encode_str_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = i32::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support strings longer than 2,147,483,647 bytes"
-            )
-        })?;
-        mini_leb128::write_i32(writer, len)?;
-        Ok(())
-    }
-
-    fn encode_seq_len<W>(&mut self, writer: &mut W, value: usize) -> zc_io::Result<()>
-    where
-        W: ?Sized + Write,
-    {
-        let len = i32::try_from(value).map_err(|_| {
-            zc_io::error!(
-                InvalidInput,
-                "NBT does not support sequences longer than 2,147,483,647 elements"
-            )
-        })?;
-        self.encode_i32(writer, len)
-    }
-}
+////////////////////////////////////////////////////////////////////////////////
 
 pub trait Encode {
-    fn encode_id<W>(&mut self, writer: &mut W, value: Id) -> zc_io::Result<()>
+    fn encode_id<W>(&mut self, writer: &mut W, id: Id) -> zc_io::Result<()>
     where
         W: ?Sized + Write;
 

@@ -1,6 +1,6 @@
 //! TODO
 
-use crate::{str::needs_escaped, Id};
+use crate::{str::needs_escaped, value::Id};
 
 use alloc::borrow::Cow;
 use core::{fmt, mem, num::NonZeroU64, result};
@@ -17,8 +17,12 @@ pub(crate) trait ZcResultExt<T> {
 }
 
 impl<T> ZcResultExt<T> for zc_io::Result<T> {
+    #[inline]
     fn attach_path(self, path: &mut Path) -> Result<T> {
-        self.map_err(|error| Error::io_with_path(error, path))
+        self.map_err(|error| {
+            let path = mem::take(path);
+            Error::io_with_path(&error, path)
+        })
     }
 }
 
@@ -66,8 +70,8 @@ impl Error {
 
     #[cold]
     #[inline(never)]
-    pub(crate) fn io_with_path(error: zc_io::Error, path: &mut Path) -> Self {
-        let position = Position::Path(mem::take(path));
+    pub(crate) fn io_with_path(error: &zc_io::Error, path: Path) -> Self {
+        let position = Position::Path(path);
 
         #[cfg(feature = "std")]
         {
@@ -102,10 +106,62 @@ impl Error {
 
     #[cold]
     #[inline(never)]
+    pub(crate) fn invalid_root(display_type: &str, path: &mut Path) -> Self {
+        Error::with_position(
+            Category::InvalidInput,
+            format!("NBT does not support {display_type} root values"),
+            Position::Path(mem::take(path)),
+        )
+    }
+
+    #[cold]
+    #[inline(never)]
     pub(crate) fn invalid_seq(actual: Id, expected: Id, path: &mut Path) -> Self {
         Error::with_position(
             Category::InvalidInput,
             format!("NBT does not support mixed sequences (got {actual}, expected {expected})"),
+            Position::Path(mem::take(path)),
+        )
+    }
+
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn invalid_seq_hint(actual: usize, expected: usize, path: &mut Path) -> Self {
+        Error::with_position(
+            Category::InvalidInput,
+            format!("invalid sequence length hint (got {actual}, expected {expected})"),
+            Position::Path(mem::take(path)),
+        )
+    }
+
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn invalid_seq_len(actual: usize, expected: usize, path: &mut Path) -> Self {
+        Error::with_position(
+            Category::InvalidInput,
+            format!("oversized sequence length (got {actual}, expected {expected})"),
+            Position::Path(mem::take(path)),
+        )
+    }
+
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn seq_len_overflow(max: usize, path: &mut Path) -> Self {
+        Error::with_position(
+            Category::InvalidInput,
+            format!("selected specification cannot serialize a sequence with greater than `{max}` elements"),
+            Position::Path(mem::take(path)),
+        )
+    }
+
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn str_len_overflow(max: usize, path: &mut Path) -> Self {
+        Error::with_position(
+            Category::InvalidInput,
+            format!(
+                "selected specification cannot serialize a string with greater than `{max}` bytes"
+            ),
             Position::Path(mem::take(path)),
         )
     }

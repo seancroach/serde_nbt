@@ -35,21 +35,28 @@ java = ["binary"]
 # https://minecraft.fandom.com/wiki/NBT_path_format
 path = ["snbt"]
 
+preserve_order = ["dep:indexmap"]
+
 # Enables the SNBT format. No binary format is required for this feature to
 # work.
-snbt = ["dep:arrayvec", "dep:ryu"]
+snbt = ["emit", "dep:arrayvec", "dep:ryu"]
 
 # Enables the use of the standard library to add no_std compatability for those
 # who need it.
-std = ["indexmap/std", "serde/std", "zc_io/std"]
+std = ["indexmap?/std", "serde/std", "zc_io/std"]
 
 ################################################################################
 # Internal Features
 ################################################################################
 
+
+# An internal feature. This is used to implement the utility framework used for
+# binary formats.
+binary = ["emit"]
+
 # An internal feature. This is used to implement the serde framework used for
-# binary specification.
-binary = []
+# serializers whose `Ok` is equivalent to `()`.
+emit = []
 
 ################################################################################
 # Dependencies
@@ -82,6 +89,7 @@ features = ["ahash", "inline-more"]
 # This is what backs the "preserve_order" feature.
 [dependencies.indexmap]
 version = "1"
+optional = true
 default-features = false
 features = ["serde"]
 
