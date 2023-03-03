@@ -1,11 +1,8 @@
-//! TODO
-
-use super::{Byte, Compound, List, Value};
-
 use crate::{
     error::{Error, Path, Result},
-    ser::{serialize_invalid_types, serialize_passthroughs, KeyQuery},
-    ArrayBrand,
+    ser::collect_key,
+    util::ArrayBrand,
+    value::{Byte, Compound, List, Value},
 };
 
 use alloc::borrow::Cow;
@@ -18,112 +15,189 @@ use serde::{ser, Serialize};
 /// # Errors
 ///
 /// TODO
-///
-/// # Panics
-///
-/// TODO
 pub fn to_value<T>(value: &T) -> Result<Value>
 where
     T: ?Sized + Serialize,
 {
-    let mut serializer = Serializer::new(true);
+    let mut serializer = ValueSerializer::new(true);
     value.serialize(&mut serializer)
 }
 
-pub struct Serializer {
-    path: Path,
+pub struct ValueSerializer {
     is_human_readable: bool,
+    path: Path,
 }
 
-impl Serializer {
+impl ValueSerializer {
+    /// TODO
     #[must_use]
     #[inline]
     pub fn new(is_human_readable: bool) -> Self {
-        Serializer {
-            path: Path::new(),
+        ValueSerializer {
             is_human_readable,
+            path: Path::new(),
         }
     }
 }
 
-impl<'a> ser::Serializer for &'a mut Serializer {
+impl<'ser> ser::Serializer for &'ser mut ValueSerializer {
     type Ok = Value;
     type Error = Error;
 
-    type SerializeSeq = SeqSerializer<'a>;
-    type SerializeTuple = SeqSerializer<'a>;
-    type SerializeTupleStruct = SeqSerializer<'a>;
-    type SerializeTupleVariant = SeqSerializer<'a>;
-    type SerializeMap = MapSerializer<'a>;
-    type SerializeStruct = MapSerializer<'a>;
-    type SerializeStructVariant = MapSerializer<'a>;
-
-    serialize_invalid_types!();
-    serialize_passthroughs!();
+    type SerializeSeq = SeqSerializer<'ser>;
+    type SerializeTuple = SeqSerializer<'ser>;
+    type SerializeTupleStruct = SeqSerializer<'ser>;
+    type SerializeTupleVariant = SeqSerializer<'ser>;
+    type SerializeMap = MapSerializer<'ser>;
+    type SerializeStruct = MapSerializer<'ser>;
+    type SerializeStructVariant = MapSerializer<'ser>;
 
     #[inline]
-    fn serialize_bool(self, value: bool) -> Result<Self::Ok> {
+    fn serialize_bool(self, value: bool) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Byte(Byte::Boolean(value)))
     }
 
     #[inline]
-    fn serialize_i8(self, value: i8) -> Result<Self::Ok> {
+    fn serialize_i8(self, value: i8) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Byte(Byte::Integer(value)))
     }
 
     #[inline]
-    fn serialize_i16(self, value: i16) -> Result<Self::Ok> {
+    fn serialize_i16(self, value: i16) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Short(value))
     }
 
     #[inline]
-    fn serialize_i32(self, value: i32) -> Result<Self::Ok> {
+    fn serialize_i32(self, value: i32) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Int(value))
     }
 
     #[inline]
-    fn serialize_i64(self, value: i64) -> Result<Self::Ok> {
+    fn serialize_i64(self, value: i64) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Long(value))
     }
 
+    fn serialize_i128(self, _value: i128) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`i128`", &mut self.path))
+    }
+
+    fn serialize_u8(self, _value: u8) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`u8`", &mut self.path))
+    }
+
+    fn serialize_u16(self, _value: u16) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`u16`", &mut self.path))
+    }
+
+    fn serialize_u32(self, _value: u32) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`u32`", &mut self.path))
+    }
+
+    fn serialize_u64(self, _value: u64) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`u64`", &mut self.path))
+    }
+
+    fn serialize_u128(self, _value: u128) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`u128`", &mut self.path))
+    }
+
     #[inline]
-    fn serialize_f32(self, value: f32) -> Result<Self::Ok> {
+    fn serialize_f32(self, value: f32) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Float(value))
     }
 
     #[inline]
-    fn serialize_f64(self, value: f64) -> Result<Self::Ok> {
+    fn serialize_f64(self, value: f64) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Double(value))
     }
 
     #[inline]
-    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
+    fn serialize_char(self, value: char) -> std::result::Result<Self::Ok, Self::Error> {
+        let mut buf = [0; 4];
+        self.serialize_str(value.encode_utf8(&mut buf))
+    }
+
+    #[inline]
+    fn serialize_str(self, value: &str) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::String(value.to_owned()))
     }
 
+    fn serialize_bytes(self, _value: &[u8]) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`&[u8]`", &mut self.path))
+    }
+
+    fn serialize_none(self) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`None`", &mut self.path))
+    }
+
+    #[inline]
+    fn serialize_some<T>(self, value: &T) -> std::result::Result<Self::Ok, Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_unit(self) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("`()`", &mut self.path))
+    }
+
+    fn serialize_unit_struct(
+        self,
+        _name: &'static str,
+    ) -> std::result::Result<Self::Ok, Self::Error> {
+        Err(Error::invalid_type("unit struct", &mut self.path))
+    }
+
+    #[inline]
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> std::result::Result<Self::Ok, Self::Error> {
+        self.serialize_str(variant)
+    }
+
+    #[inline]
+    fn serialize_newtype_struct<T>(
+        self,
+        _name: &'static str,
+        value: &T,
+    ) -> std::result::Result<Self::Ok, Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    #[inline]
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         value: &T,
-    ) -> Result<Self::Ok>
+    ) -> std::result::Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        let mut map = self.serialize_map(Some(1))?;
+        let mut map = self.serialize_struct(Default::default(), 1)?;
         ser::SerializeStruct::serialize_field(&mut map, variant, value)?;
         ser::SerializeStruct::end(map)
     }
 
     #[inline]
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
+    fn serialize_seq(
+        self,
+        len: Option<usize>,
+    ) -> std::result::Result<Self::SerializeSeq, Self::Error> {
         Ok(SeqSerializer::new(self, None, len))
     }
 
     #[inline]
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        self.serialize_seq(Some(len))
+    fn serialize_tuple(self, len: usize) -> std::result::Result<Self::SerializeTuple, Self::Error> {
+        Ok(SeqSerializer::new(self, None, Some(len)))
     }
 
     #[inline]
@@ -131,7 +205,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self,
         name: &'static str,
         len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
+    ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
         let brand = ArrayBrand::from_str(name);
         Ok(SeqSerializer::new(self, brand, Some(len)))
     }
@@ -143,19 +217,27 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _variant_index: u32,
         variant: &'static str,
         len: usize,
-    ) -> Result<Self::SerializeTupleVariant> {
+    ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
+        let brand = ArrayBrand::from_str(name);
         self.path.enter_scope(Cow::Borrowed(variant));
-        self.serialize_tuple_struct(name, len)
+        Ok(SeqSerializer::new(self, brand, Some(len)))
     }
 
     #[inline]
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+    fn serialize_map(
+        self,
+        len: Option<usize>,
+    ) -> std::result::Result<Self::SerializeMap, Self::Error> {
         Ok(MapSerializer::new(self, len))
     }
 
     #[inline]
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        len: usize,
+    ) -> std::result::Result<Self::SerializeStruct, Self::Error> {
+        Ok(MapSerializer::new(self, Some(len)))
     }
 
     #[inline]
@@ -165,9 +247,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _variant_index: u32,
         variant: &'static str,
         len: usize,
-    ) -> Result<Self::SerializeStructVariant> {
+    ) -> std::result::Result<Self::SerializeStructVariant, Self::Error> {
         self.path.enter_scope(Cow::Borrowed(variant));
-        self.serialize_map(Some(len))
+        Ok(MapSerializer::new(self, Some(len)))
     }
 
     #[inline]
@@ -175,8 +257,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Display,
     {
-        let data = value.to_string();
-        Ok(Value::String(data))
+        Ok(Value::String(value.to_string()))
     }
 
     #[inline]
@@ -187,48 +268,60 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-macro_rules! end_seq_serializer {
+macro_rules! end_sequence {
     ($self:ident) => {{
         match ($self.brand, $self.list) {
-            (Some(ArrayBrand::Byte), List::Empty) => Value::ByteArray(Vec::new()),
-            (Some(ArrayBrand::Int), List::Empty) => Value::IntArray(Vec::new()),
-            (Some(ArrayBrand::Long), List::Empty) => Value::LongArray(Vec::new()),
+            (Some(ArrayBrand::Byte), List::Empty) => Ok(Value::ByteArray(Vec::new())),
+            (Some(ArrayBrand::Int), List::Empty) => Ok(Value::IntArray(Vec::new())),
+            (Some(ArrayBrand::Long), List::Empty) => Ok(Value::LongArray(Vec::new())),
 
-            (Some(ArrayBrand::Byte), List::Byte(vec)) => Value::ByteArray(vec),
-            (Some(ArrayBrand::Int), List::Int(vec)) => Value::IntArray(vec),
-            (Some(ArrayBrand::Long), List::Long(vec)) => Value::LongArray(vec),
-            (None, list) => Value::List(list),
+            (Some(ArrayBrand::Byte), List::Byte(vec)) => Ok(Value::ByteArray(vec)),
+            (Some(ArrayBrand::Int), List::Int(vec)) => Ok(Value::IntArray(vec)),
+            (Some(ArrayBrand::Long), List::Long(vec)) => Ok(Value::LongArray(vec)),
 
-            _ => unreachable!("unreachable sequence serializer state"),
+            (None, list) => Ok(Value::List(list)),
+
+            _ => unreachable!(),
         }
     }};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub struct SeqSerializer<'a> {
-    serializer: &'a mut Serializer,
+pub struct SeqSerializer<'ser> {
+    serializer: &'ser mut ValueSerializer,
     brand: Option<ArrayBrand>,
     len: Option<usize>,
     list: List,
     index: usize,
 }
 
-impl<'a> SeqSerializer<'a> {
+impl<'ser> SeqSerializer<'ser> {
     #[must_use]
     #[inline]
-    fn new(serializer: &'a mut Serializer, brand: Option<ArrayBrand>, len: Option<usize>) -> Self {
+    fn new(
+        serializer: &'ser mut ValueSerializer,
+        brand: Option<ArrayBrand>,
+        len: Option<usize>,
+    ) -> Self {
+        let list = brand
+            .map(|brand| {
+                let capacity = len.unwrap_or_default();
+                let kind = brand.element_kind();
+                List::with_capacity_and_kind(capacity, kind)
+            })
+            .unwrap_or_default();
         SeqSerializer {
             serializer,
             brand,
             len,
-            list: List::Empty,
+            list,
             index: 0,
         }
     }
 }
 
-impl<'a> ser::SerializeSeq for SeqSerializer<'a> {
+impl<'ser> ser::SerializeSeq for SeqSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -241,32 +334,35 @@ impl<'a> ser::SerializeSeq for SeqSerializer<'a> {
 
         let value = value.serialize(&mut *self.serializer)?;
 
-        if self.index == 0 {
-            let kind = self.brand.map_or(value.kind(), ArrayBrand::element_kind);
+        if let List::Empty = self.list {
+            self.serializer.path.leave_element();
+
             let capacity = self.len.unwrap_or_default();
-            self.list = List::with_capacity_and_kind(capacity, kind);
+            let kind = value.kind();
+            let mut list = List::with_capacity_and_kind(capacity, kind);
+            unsafe { list.push_unchecked(value) };
+        } else {
+            if let Err(value) = self.list.push_checked(value) {
+                return Err(Error::invalid_seq(
+                    value.kind().to_id(),
+                    self.list.id(),
+                    &mut self.serializer.path,
+                ));
+            }
+            self.serializer.path.leave_element();
         }
 
-        if let Err(value) = self.list.push_checked(value) {
-            return Err(Error::invalid_seq(
-                value.kind().to_id(),
-                self.list.id(),
-                &mut self.serializer.path,
-            ));
-        }
-
-        self.serializer.path.leave_element();
         self.index += 1;
         Ok(())
     }
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        Ok(end_seq_serializer!(self))
+        end_sequence!(self)
     }
 }
 
-impl<'a> ser::SerializeTuple for SeqSerializer<'a> {
+impl<'ser> ser::SerializeTuple for SeqSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -284,7 +380,7 @@ impl<'a> ser::SerializeTuple for SeqSerializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeTupleStruct for SeqSerializer<'a> {
+impl<'ser> ser::SerializeTupleStruct for SeqSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -302,7 +398,7 @@ impl<'a> ser::SerializeTupleStruct for SeqSerializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeTupleVariant for SeqSerializer<'a> {
+impl<'ser> ser::SerializeTupleVariant for SeqSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -316,67 +412,50 @@ impl<'a> ser::SerializeTupleVariant for SeqSerializer<'a> {
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        let value = end_seq_serializer!(self);
-        let key = self.serializer.path.leave_scope().into_owned();
+        let list = end_sequence!(self)?;
+
         let mut compound = Compound::with_capacity(1);
-        compound.insert(key, value);
+        let key = self.serializer.path.leave_scope().into_owned();
+        compound.insert(key, list);
+
         Ok(Value::Compound(compound))
     }
 }
 
-pub struct MapSerializer<'a> {
-    serializer: &'a mut Serializer,
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct MapSerializer<'ser> {
+    serializer: &'ser mut ValueSerializer,
     compound: Compound,
-    cached: Option<Cow<'static, str>>,
 }
 
-impl<'a> MapSerializer<'a> {
-    fn new(serializer: &'a mut Serializer, len: Option<usize>) -> Self {
+impl<'ser> MapSerializer<'ser> {
+    #[must_use]
+    #[inline]
+    fn new(serializer: &'ser mut ValueSerializer, len: Option<usize>) -> Self {
+        let capacity = len.unwrap_or_default();
         MapSerializer {
             serializer,
-            compound: Compound::with_capacity(len.unwrap_or_default()),
-            cached: None,
+            compound: Compound::with_capacity(capacity),
         }
-    }
-
-    #[inline]
-    fn handle_key<T>(&mut self, key: &T) -> Result<Cow<'static, str>>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.serializer.path.enter_unresolved();
-        let key = key.serialize(KeyQuery::new(
-            &mut self.serializer.path,
-            self.serializer.is_human_readable,
-        ))?;
-        self.serializer.path.leave_unresolved();
-        Ok(key)
-    }
-
-    #[inline]
-    fn handle_value<T>(&mut self, key: Cow<'static, str>, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.serializer.path.enter_scope(key);
-        let value = value.serialize(&mut *self.serializer)?;
-        let key = self.serializer.path.leave_scope().into_owned();
-        self.compound.insert(key, value);
-        Ok(())
     }
 }
 
-impl<'a> ser::SerializeMap for MapSerializer<'a> {
+impl<'ser> ser::SerializeMap for MapSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
     #[inline]
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
-        let key = self.handle_key(key)?;
-        self.cached = Some(key);
+        let key = collect_key(
+            key,
+            &mut self.serializer.path,
+            self.serializer.is_human_readable,
+        )?;
+        self.serializer.path.enter_scope(key);
         Ok(())
     }
 
@@ -385,30 +464,21 @@ impl<'a> ser::SerializeMap for MapSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-        let key = self
-            .cached
-            .take()
-            .expect("`serialize_key` should get called before `serialize_value`");
-        self.handle_value(key, value)
+        let value = value.serialize(&mut *self.serializer)?;
+
+        let key = self.serializer.path.leave_scope().into_owned();
+        self.compound.insert(key, value);
+
+        Ok(())
     }
 
     #[inline]
-    fn serialize_entry<K, V>(&mut self, key: &K, value: &V) -> std::result::Result<(), Self::Error>
-    where
-        K: ?Sized + Serialize,
-        V: ?Sized + Serialize,
-    {
-        let key = self.handle_key(key)?;
-        self.handle_value(key, value)
-    }
-
-    #[inline]
-    fn end(self) -> Result<Self::Ok> {
+    fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Compound(self.compound))
     }
 }
 
-impl<'a> ser::SerializeStruct for MapSerializer<'a> {
+impl<'ser> ser::SerializeStruct for MapSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -417,16 +487,23 @@ impl<'a> ser::SerializeStruct for MapSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-        self.handle_value(Cow::Borrowed(key), value)
+        self.serializer.path.enter_scope(Cow::Borrowed(key));
+
+        let value = value.serialize(&mut *self.serializer)?;
+        self.compound.insert(key.to_owned(), value);
+
+        self.serializer.path.leave_scope();
+
+        Ok(())
     }
 
     #[inline]
-    fn end(self) -> Result<Self::Ok> {
+    fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
         Ok(Value::Compound(self.compound))
     }
 }
 
-impl<'a> ser::SerializeStructVariant for MapSerializer<'a> {
+impl<'ser> ser::SerializeStructVariant for MapSerializer<'ser> {
     type Ok = Value;
     type Error = Error;
 
@@ -439,11 +516,13 @@ impl<'a> ser::SerializeStructVariant for MapSerializer<'a> {
     }
 
     #[inline]
-    fn end(self) -> Result<Self::Ok> {
-        let value = Value::Compound(self.compound);
+    fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
+        let inner = Value::Compound(self.compound);
+
+        let mut outer = Compound::with_capacity(1);
         let key = self.serializer.path.leave_scope().into_owned();
-        let mut compound = Compound::with_capacity(1);
-        compound.insert(key, value);
-        Ok(Value::Compound(compound))
+        outer.insert(key, inner);
+
+        Ok(Value::Compound(outer))
     }
 }

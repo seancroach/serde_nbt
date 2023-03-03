@@ -5,21 +5,21 @@ use core::{
     cmp::Ordering,
     fmt,
     hash::{BuildHasher, Hash},
-    iter::FusedIterator,
+    iter::{DoubleEndedIterator, FusedIterator},
     marker::PhantomData,
     ops::RangeBounds,
 };
 
 use ahash::RandomState;
 #[cfg(not(feature = "preserve_order"))]
-pub use hashbrown::hash_map::{
+use hashbrown::hash_map::{
     Drain as DrainImpl, Entry as EntryImpl, HashMap as MapImpl, IntoIter as IntoIterImpl,
     IntoKeys as IntoKeysImpl, IntoValues as IntoValuesImpl, Iter as IterImpl,
     IterMut as IterMutImpl, Keys as KeysImpl, OccupiedEntry as OccupiedEntryImpl,
     VacantEntry as VacantEntryImpl, Values as ValuesImpl, ValuesMut as ValuesMutImpl,
 };
 #[cfg(feature = "preserve_order")]
-pub use indexmap::map::{
+use indexmap::map::{
     Drain as DrainImpl, Entry as EntryImpl, IndexMap as MapImpl, IntoIter as IntoIterImpl,
     IntoKeys as IntoKeysImpl, IntoValues as IntoValuesImpl, Iter as IterImpl,
     IterMut as IterMutImpl, Keys as KeysImpl, OccupiedEntry as OccupiedEntryImpl,
@@ -658,7 +658,11 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
     }
 
     #[inline]
-    pub fn or_insert(self, default: V) -> &'a mut V {
+    pub fn or_insert(self, default: V) -> &'a mut V
+    where
+        K: Hash,
+        S: BuildHasher,
+    {
         match self {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(default),
@@ -668,6 +672,8 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
     #[inline]
     pub fn or_insert_with<F>(self, f: F) -> &'a mut V
     where
+        K: Hash,
+        S: BuildHasher,
         F: FnOnce() -> V,
     {
         match self {
@@ -679,6 +685,8 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
     #[inline]
     pub fn or_insert_with_key<F>(self, f: F) -> &'a mut V
     where
+        K: Hash,
+        S: BuildHasher,
         F: FnOnce(&K) -> V,
     {
         match self {
@@ -693,7 +701,9 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
     #[inline]
     pub fn or_default(self) -> &'a mut V
     where
+        K: Hash,
         V: Default,
+        S: BuildHasher,
     {
         match self {
             Entry::Occupied(entry) => entry.into_mut(),
@@ -837,7 +847,11 @@ impl<'a, K, V, S> VacantEntry<'a, K, V, S> {
     }
 
     #[inline]
-    pub fn insert(self, value: V) -> &'a mut V {
+    pub fn insert(self, value: V) -> &'a mut V
+    where
+        K: Hash,
+        S: BuildHasher,
+    {
         self.inner.insert(value)
     }
 }
@@ -860,6 +874,8 @@ macro_rules! delegate_iterator {
             }
         }
 
+        #[cfg(feature = "preserve_order")]
+        #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
         impl $($generics)* DoubleEndedIterator for $name $($generics)* {
             #[inline]
             fn next_back(&mut self) -> Option<Self::Item> {

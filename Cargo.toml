@@ -13,22 +13,26 @@ edition = "2021"
 # By default serde_nbt supports using the standard library to encode and decode
 # only the Minecraft: Java Edition's specification of NBT to match the baseline
 # functionality of other NBT libraries.
-default = ["compression", "java"]
+default = ["be", "compression"]
 
-# Enables the Minecraft: Bedrock Edition's little-endian specification of NBT
-# designed for disk.
-bedrock_disk = ["binary"]
+# Enables the Minecraft: Java Edition's specification of NBT.
+be = ["binary"]
 
-# Enables the Minecraft: Bedrock Edition's VarInt specification of NBT intended
-# for use over the network.
-bedrock_network = ["bedrock_disk", "dep:mini_leb128", "dep:zende"]
+# This is used to implement the encoding framework used for binary formats. End
+# users are not expected to enable this feature explicitly.
+binary = ["emit"]
 
 # Enables built-in support for gzip or zlib compression/decompression like a
 # developer might find in the wild. Requires the use of the standard library.
 compression = ["std", "dep:flate2"]
 
-# Enables the Minecraft: Java Edition's specification of NBT.
-java = ["binary"]
+# This is used to implement the serde framework used for serializers whose `Ok`
+# value is `()`. End users are not expected to enable this feature explicitly.
+emit = []
+
+# Enables the Minecraft: Bedrock Edition's little-endian specification of NBT
+# designed for disk.
+le = ["binary"]
 
 # Enables the NBT path format which is frequently used in Minecraft's chat and
 # command line. For more information, refer to the wiki page here:
@@ -45,18 +49,9 @@ snbt = ["emit", "dep:arrayvec", "dep:ryu"]
 # who need it.
 std = ["indexmap?/std", "serde/std", "zc_io/std"]
 
-################################################################################
-# Internal Features
-################################################################################
-
-
-# An internal feature. This is used to implement the utility framework used for
-# binary formats.
-binary = ["emit"]
-
-# An internal feature. This is used to implement the serde framework used for
-# serializers whose `Ok` is equivalent to `()`.
-emit = []
+# Enables the Minecraft: Bedrock Edition's VarInt specification of NBT intended
+# for use over the network.
+varint = ["le", "dep:mini_leb128", "dep:zende"]
 
 ################################################################################
 # Dependencies

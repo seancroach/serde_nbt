@@ -1,5 +1,7 @@
-pub mod map;
-pub mod ser;
+#![allow(clippy::module_name_repetitions)]
+
+pub(crate) mod de;
+pub(crate) mod ser;
 
 use core::fmt;
 
@@ -21,20 +23,20 @@ pub enum Value {
 
 impl Value {
     #[must_use]
-    pub const fn kind(&self) -> ValueKind {
+    pub const fn kind(&self) -> Kind {
         match self {
-            Value::Byte(_) => ValueKind::Byte,
-            Value::Short(_) => ValueKind::Short,
-            Value::Int(_) => ValueKind::Int,
-            Value::Long(_) => ValueKind::Long,
-            Value::Float(_) => ValueKind::Float,
-            Value::Double(_) => ValueKind::Double,
-            Value::ByteArray(_) => ValueKind::ByteArray,
-            Value::String(_) => ValueKind::String,
-            Value::List(_) => ValueKind::List,
-            Value::Compound(_) => ValueKind::Compound,
-            Value::IntArray(_) => ValueKind::IntArray,
-            Value::LongArray(_) => ValueKind::LongArray,
+            Value::Byte(_) => Kind::Byte,
+            Value::Short(_) => Kind::Short,
+            Value::Int(_) => Kind::Int,
+            Value::Long(_) => Kind::Long,
+            Value::Float(_) => Kind::Float,
+            Value::Double(_) => Kind::Double,
+            Value::ByteArray(_) => Kind::ByteArray,
+            Value::String(_) => Kind::String,
+            Value::List(_) => Kind::List,
+            Value::Compound(_) => Kind::Compound,
+            Value::IntArray(_) => Kind::IntArray,
+            Value::LongArray(_) => Kind::LongArray,
         }
     }
 }
@@ -58,26 +60,26 @@ pub enum List {
 
 impl List {
     #[must_use]
-    pub fn with_capacity_and_kind(capacity: usize, kind: ValueKind) -> Self {
+    pub fn with_capacity_and_kind(capacity: usize, kind: Kind) -> Self {
         match kind {
-            ValueKind::Byte => List::Byte(Vec::with_capacity(capacity)),
-            ValueKind::Short => List::Short(Vec::with_capacity(capacity)),
-            ValueKind::Int => List::Int(Vec::with_capacity(capacity)),
-            ValueKind::Long => List::Long(Vec::with_capacity(capacity)),
-            ValueKind::Float => List::Float(Vec::with_capacity(capacity)),
-            ValueKind::Double => List::Double(Vec::with_capacity(capacity)),
-            ValueKind::ByteArray => List::ByteArray(Vec::with_capacity(capacity)),
-            ValueKind::String => List::String(Vec::with_capacity(capacity)),
-            ValueKind::List => List::List(Vec::with_capacity(capacity)),
-            ValueKind::Compound => List::Compound(Vec::with_capacity(capacity)),
-            ValueKind::IntArray => List::IntArray(Vec::with_capacity(capacity)),
-            ValueKind::LongArray => List::LongArray(Vec::with_capacity(capacity)),
+            Kind::Byte => List::Byte(Vec::with_capacity(capacity)),
+            Kind::Short => List::Short(Vec::with_capacity(capacity)),
+            Kind::Int => List::Int(Vec::with_capacity(capacity)),
+            Kind::Long => List::Long(Vec::with_capacity(capacity)),
+            Kind::Float => List::Float(Vec::with_capacity(capacity)),
+            Kind::Double => List::Double(Vec::with_capacity(capacity)),
+            Kind::ByteArray => List::ByteArray(Vec::with_capacity(capacity)),
+            Kind::String => List::String(Vec::with_capacity(capacity)),
+            Kind::List => List::List(Vec::with_capacity(capacity)),
+            Kind::Compound => List::Compound(Vec::with_capacity(capacity)),
+            Kind::IntArray => List::IntArray(Vec::with_capacity(capacity)),
+            Kind::LongArray => List::LongArray(Vec::with_capacity(capacity)),
         }
     }
 
     #[must_use]
     #[inline]
-    pub fn from_kind(kind: ValueKind) -> Self {
+    pub fn from_kind(kind: Kind) -> Self {
         Self::with_capacity_and_kind(0, kind)
     }
 
@@ -110,7 +112,7 @@ impl List {
     #[track_caller]
     pub unsafe fn push_unchecked(&mut self, value: Value) {
         debug_assert_eq!(self.id(), value.kind().to_id());
-        self.push_checked(value).unwrap_unchecked()
+        self.push_checked(value).unwrap_unchecked();
     }
 
     /// TODO
@@ -119,7 +121,7 @@ impl List {
     #[track_caller]
     pub fn push(&mut self, value: Value) {
         self.push_checked(value)
-            .expect("the provided `Value` should have been the same datatype as the `List`")
+            .expect("the provided `Value` should have been the same datatype as the `List`");
     }
 
     /// TODO
@@ -176,7 +178,7 @@ impl Default for Byte {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ValueKind {
+pub enum Kind {
     Byte,
     Short,
     Int,
@@ -191,24 +193,30 @@ pub enum ValueKind {
     LongArray,
 }
 
-impl ValueKind {
+impl Kind {
     #[must_use]
     #[inline]
     pub fn to_id(self) -> Id {
         match self {
-            ValueKind::Byte => Id::Byte,
-            ValueKind::Short => Id::Short,
-            ValueKind::Int => Id::Int,
-            ValueKind::Long => Id::Long,
-            ValueKind::Float => Id::Float,
-            ValueKind::Double => Id::Double,
-            ValueKind::ByteArray => Id::ByteArray,
-            ValueKind::String => Id::String,
-            ValueKind::List => Id::List,
-            ValueKind::Compound => Id::Compound,
-            ValueKind::IntArray => Id::IntArray,
-            ValueKind::LongArray => Id::LongArray,
+            Kind::Byte => Id::Byte,
+            Kind::Short => Id::Short,
+            Kind::Int => Id::Int,
+            Kind::Long => Id::Long,
+            Kind::Float => Id::Float,
+            Kind::Double => Id::Double,
+            Kind::ByteArray => Id::ByteArray,
+            Kind::String => Id::String,
+            Kind::List => Id::List,
+            Kind::Compound => Id::Compound,
+            Kind::IntArray => Id::IntArray,
+            Kind::LongArray => Id::LongArray,
         }
+    }
+}
+
+impl fmt::Display for Kind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to_id().fmt(f)
     }
 }
 
@@ -232,7 +240,7 @@ pub enum Id {
 impl Id {
     #[must_use]
     #[inline]
-    pub fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Id::End => "TAG_End",
             Id::Byte => "TAG_Byte",
@@ -252,22 +260,73 @@ impl Id {
 
     #[must_use]
     #[inline]
-    pub fn to_kind(self) -> Option<ValueKind> {
+    pub const fn from_u8(value: u8) -> Option<Self> {
+        let id = match value {
+            0x00 => Id::End,
+            0x01 => Id::Byte,
+            0x02 => Id::Short,
+            0x03 => Id::Int,
+            0x04 => Id::Long,
+            0x05 => Id::Float,
+            0x06 => Id::Double,
+            0x07 => Id::ByteArray,
+            0x08 => Id::String,
+            0x09 => Id::List,
+            0x0A => Id::Compound,
+            0x0B => Id::IntArray,
+            0x0C => Id::LongArray,
+            _ => return None,
+        };
+        Some(id)
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_kind(self) -> Option<Kind> {
         match self {
             Id::End => None,
-            Id::Byte => Some(ValueKind::Byte),
-            Id::Short => Some(ValueKind::Short),
-            Id::Int => Some(ValueKind::Int),
-            Id::Long => Some(ValueKind::Long),
-            Id::Float => Some(ValueKind::Float),
-            Id::Double => Some(ValueKind::Double),
-            Id::ByteArray => Some(ValueKind::ByteArray),
-            Id::String => Some(ValueKind::String),
-            Id::List => Some(ValueKind::List),
-            Id::Compound => Some(ValueKind::Compound),
-            Id::IntArray => Some(ValueKind::IntArray),
-            Id::LongArray => Some(ValueKind::LongArray),
+            Id::Byte => Some(Kind::Byte),
+            Id::Short => Some(Kind::Short),
+            Id::Int => Some(Kind::Int),
+            Id::Long => Some(Kind::Long),
+            Id::Float => Some(Kind::Float),
+            Id::Double => Some(Kind::Double),
+            Id::ByteArray => Some(Kind::ByteArray),
+            Id::String => Some(Kind::String),
+            Id::List => Some(Kind::List),
+            Id::Compound => Some(Kind::Compound),
+            Id::IntArray => Some(Kind::IntArray),
+            Id::LongArray => Some(Kind::LongArray),
         }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_u8(self) -> u8 {
+        match self {
+            Id::End => 0x00,
+            Id::Byte => 0x01,
+            Id::Short => 0x02,
+            Id::Int => 0x03,
+            Id::Long => 0x04,
+            Id::Float => 0x05,
+            Id::Double => 0x06,
+            Id::ByteArray => 0x07,
+            Id::String => 0x08,
+            Id::List => 0x09,
+            Id::Compound => 0x0A,
+            Id::IntArray => 0x0B,
+            Id::LongArray => 0x0C,
+        }
+    }
+}
+
+impl TryFrom<u8> for Id {
+    type Error = u8;
+
+    #[inline]
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Id::from_u8(value).ok_or(value)
     }
 }
 
@@ -285,7 +344,7 @@ impl Default for Id {
     }
 }
 
-pub type Compound = map::Map<String, Value>;
+pub type Compound = crate::map::Map<String, Value>;
 
 pub type ByteArray = Vec<Byte>;
 pub type IntArray = Vec<i32>;

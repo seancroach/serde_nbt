@@ -1,13 +1,13 @@
 //! TODO
 
-use crate::{str::needs_escaped, value::Id};
+use crate::{util::needs_escaped, value::Id};
 
 use alloc::borrow::Cow;
 use core::{fmt, mem, num::NonZeroU64, result};
 #[cfg(feature = "std")]
 use std::{backtrace::Backtrace, error, io::ErrorKind};
 
-use serde::ser;
+use serde::{de, ser};
 
 /// TODO
 pub type Result<T> = result::Result<T, Error>;
@@ -21,7 +21,7 @@ impl<T> ZcResultExt<T> for zc_io::Result<T> {
     fn attach_path(self, path: &mut Path) -> Result<T> {
         self.map_err(|error| {
             let path = mem::take(path);
-            Error::io_with_path(&error, path)
+            Error::io(&error, Position::Path(path))
         })
     }
 }
@@ -70,9 +70,7 @@ impl Error {
 
     #[cold]
     #[inline(never)]
-    pub(crate) fn io_with_path(error: &zc_io::Error, path: Path) -> Self {
-        let position = Position::Path(path);
-
+    pub(crate) fn io(error: &zc_io::Error, position: Position) -> Self {
         #[cfg(feature = "std")]
         {
             let category = error.kind().into();
@@ -190,6 +188,15 @@ impl ser::Error for Error {
     }
 }
 
+impl de::Error for Error {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: fmt::Display,
+    {
+        todo!()
+    }
+}
+
 struct Inner {
     message: Cow<'static, str>,
     category: Category,
@@ -292,11 +299,8 @@ impl Path {
         debug_assert_eq!(segment, PathSegment::Unresolved);
     }
 
-    pub(crate) fn enter_scope<T>(&mut self, scope: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.inner.push(PathSegment::Identifier(scope.into()));
+    pub(crate) fn enter_scope(&mut self, scope: Cow<'static, str>) {
+        self.inner.push(PathSegment::Identifier(scope));
     }
 
     pub(crate) fn leave_scope(&mut self) -> Cow<'static, str> {
