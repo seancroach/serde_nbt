@@ -18,17 +18,13 @@ default = ["be", "compression"]
 # Enables the Minecraft: Java Edition's specification of NBT.
 be = ["binary"]
 
-# This is used to implement the encoding framework used for binary formats. End
-# users are not expected to enable this feature explicitly.
-binary = ["emit"]
-
 # Enables built-in support for gzip or zlib compression/decompression like a
 # developer might find in the wild. Requires the use of the standard library.
 compression = ["std", "dep:flate2"]
 
-# This is used to implement the serde framework used for serializers whose `Ok`
-# value is `()`. End users are not expected to enable this feature explicitly.
-emit = []
+# Use sufficent precision when parsing fixed precision floats from SNBT to
+# ensure they maintain accuracy when round-tripped through SNBT.
+float_roundtrip = ["dep:minimal-lexical"]
 
 # Enables the Minecraft: Bedrock Edition's little-endian specification of NBT
 # designed for disk.
@@ -43,7 +39,7 @@ preserve_order = ["dep:indexmap"]
 
 # Enables the SNBT format. No binary format is required for this feature to
 # work.
-snbt = ["emit", "dep:arrayvec", "dep:ryu"]
+snbt = ["dep:arrayvec", "dep:ryu"]
 
 # Enables the use of the standard library to add no_std compatability for those
 # who need it.
@@ -52,6 +48,14 @@ std = ["indexmap?/std", "serde/std", "zc_io/std"]
 # Enables the Minecraft: Bedrock Edition's VarInt specification of NBT intended
 # for use over the network.
 varint = ["le", "dep:mini_leb128", "dep:zende"]
+
+################################################################################
+# Internal Features
+################################################################################
+
+# This is used to implement the endec framework used for binary formats. End
+# users are not expected to enable this feature explicitly.
+binary = []
 
 ################################################################################
 # Dependencies
@@ -92,6 +96,13 @@ features = ["serde"]
 # either binary or SNBT formats.
 [dependencies.itoa]
 version = "1"
+
+# Efficent round-tip float parsing.
+[dependencies.minimal-lexical]
+version = "0.2"
+optional = true
+default-features = false
+features = ["alloc"]
 
 # LEB128 encoding/decoding for use with the bedrock_network feature.
 [dependencies.mini_leb128]

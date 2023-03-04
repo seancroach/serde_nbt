@@ -1,3 +1,5 @@
+//! TODO
+
 #![allow(clippy::module_name_repetitions)]
 
 use core::{
@@ -26,6 +28,7 @@ use indexmap::map::{
     VacantEntry as VacantEntryImpl, Values as ValuesImpl, ValuesMut as ValuesMutImpl,
 };
 
+/// TODO
 pub struct Map<K, V, S = RandomState> {
     inner: MapImpl<K, V, S>,
 }
@@ -35,12 +38,14 @@ impl<K, V> Map<K, V> {
     // Construction Methods
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn with_capacity(n: usize) -> Self {
@@ -53,6 +58,7 @@ impl<K, V, S> Map<K, V, S> {
     // Construction Methods
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[must_use]
     #[inline]
     pub const fn with_hasher(hash_builder: S) -> Self {
@@ -60,6 +66,7 @@ impl<K, V, S> Map<K, V, S> {
         Map { inner }
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn with_capacity_and_hasher(capacity: usize, hash_builder: S) -> Self {
@@ -71,24 +78,28 @@ impl<K, V, S> Map<K, V, S> {
     // Inspection Methods
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn hasher(&self) -> &S {
         self.inner.hasher()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn capacity(&self) -> usize {
         self.inner.capacity()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -99,48 +110,56 @@ impl<K, V, S> Map<K, V, S> {
     // Iterator Methods
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[inline]
     pub fn iter(&self) -> Iter<'_, K, V> {
         let inner = self.inner.iter();
         Iter { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         let inner = self.inner.iter_mut();
         IterMut { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn keys(&self) -> Keys<'_, K, V> {
         let inner = self.inner.keys();
         Keys { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn into_keys(self) -> IntoKeys<K, V> {
         let inner = self.inner.into_keys();
         IntoKeys { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn values(&self) -> Values<'_, K, V> {
         let inner = self.inner.values();
         Values { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         let inner = self.inner.values_mut();
         ValuesMut { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn into_values(self) -> IntoValues<K, V> {
         let inner = self.inner.into_values();
         IntoValues { inner }
     }
 
+    /// TODO
     #[inline]
     pub fn drain(&mut self) -> Drain<'_, K, V> {
         #[cfg(feature = "preserve_order")]
@@ -150,18 +169,11 @@ impl<K, V, S> Map<K, V, S> {
         Drain { inner }
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // General Removal
-    ////////////////////////////////////////////////////////////////////////////
-
-    #[inline]
-    pub fn clear(&mut self) {
-        self.inner.clear();
-    }
-
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
-    pub fn drain_count<R>(&mut self, range: R) -> Drain<'_, K, V>
+    pub fn drain_range<R>(&mut self, range: R) -> Drain<'_, K, V>
     where
         R: RangeBounds<usize>,
     {
@@ -169,13 +181,27 @@ impl<K, V, S> Map<K, V, S> {
         Drain { inner }
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // General Removal
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// TODO
+    #[inline]
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn truncate(&mut self, len: usize) {
         self.inner.truncate(len);
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn split_off(&mut self, at: usize) -> Self
@@ -192,6 +218,7 @@ where
     K: Hash + Eq,
     S: BuildHasher,
 {
+    /// TODO
     #[inline]
     pub fn retain<F>(&mut self, keep: F)
     where
@@ -204,16 +231,19 @@ where
     // Capacity API
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional);
     }
 
+    /// TODO
     #[inline]
     pub fn shrink_to_fit(&mut self) {
         self.inner.shrink_to_fit();
     }
 
+    /// TODO
     #[inline]
     pub fn shrink_to(&mut self, min: usize) {
         self.inner.shrink_to(min);
@@ -223,6 +253,7 @@ where
     // Access API
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn contains_key<Q>(&self, key: &Q) -> bool
@@ -233,6 +264,7 @@ where
         self.inner.contains_key(key)
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
@@ -243,6 +275,7 @@ where
         self.inner.get(key)
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
@@ -253,6 +286,7 @@ where
         self.inner.get_mut(key)
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
@@ -263,6 +297,7 @@ where
         self.inner.get_key_value(key)
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get_key_value_mut<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
@@ -279,7 +314,9 @@ where
         return self.inner.get_key_value_mut(key);
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn get_full<Q>(&self, key: &Q) -> Option<(usize, &K, &V)>
@@ -290,7 +327,9 @@ where
         self.inner.get_full(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn get_full_mut<Q>(&mut self, key: &Q) -> Option<(usize, &K, &mut V)>
@@ -301,7 +340,9 @@ where
         self.inner.get_full_mut(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
@@ -312,17 +353,21 @@ where
         self.inner.get_index_of(key)
     }
 
+    /// TODO
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.inner.insert(key, value)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn insert_full(&mut self, key: K, value: V) -> (usize, Option<V>) {
         self.inner.insert_full(key, value)
     }
 
+    /// TODO
     #[inline]
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
@@ -332,6 +377,7 @@ where
         self.inner.remove(key)
     }
 
+    /// TODO
     #[inline]
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
@@ -341,7 +387,9 @@ where
         self.inner.remove_entry(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
@@ -351,7 +399,9 @@ where
         self.inner.swap_remove(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn swap_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
@@ -361,7 +411,9 @@ where
         self.inner.swap_remove_entry(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn swap_remove_full<Q>(&mut self, key: &Q) -> Option<(usize, K, V)>
     where
@@ -371,7 +423,9 @@ where
         self.inner.swap_remove_full(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn swap_remove_index<Q>(&mut self, index: usize) -> Option<(K, V)>
     where
@@ -381,7 +435,9 @@ where
         self.inner.swap_remove_index(index)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn shift_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
@@ -391,7 +447,9 @@ where
         self.inner.shift_remove(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn shift_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
@@ -402,7 +460,9 @@ where
         self.inner.shift_remove_entry(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn shift_remove_full<Q>(&mut self, key: &Q) -> Option<(usize, K, V)>
     where
@@ -412,7 +472,9 @@ where
         self.inner.shift_remove_full(key)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn shift_remove_index<Q>(&mut self, index: usize) -> Option<(K, V)>
     where
@@ -422,7 +484,9 @@ where
         self.inner.shift_remove_index(index)
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn pop(&mut self) -> Option<(K, V)> {
         self.inner.pop()
@@ -432,18 +496,20 @@ where
     // Entry API
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn entry(&mut self, key: K) -> Entry<'_, K, V, S> {
-        let inner = self.inner.entry(key);
-        Entry::new(inner)
+        self.inner.entry(key).into()
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Ordering API
     ////////////////////////////////////////////////////////////////////////////
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sort_keys(&mut self)
     where
@@ -452,7 +518,9 @@ where
         self.inner.sort_keys();
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sort_by<F>(&mut self, cmp: F)
     where
@@ -461,7 +529,9 @@ where
         self.inner.sort_by(cmp);
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sorted_by<F>(self, cmp: F) -> IntoIter<K, V>
     where
@@ -471,7 +541,9 @@ where
         IntoIter { inner }
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sort_unstable_keys(&mut self)
     where
@@ -480,7 +552,9 @@ where
         self.inner.sort_unstable_keys();
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sort_unstable_by<F>(&mut self, cmp: F)
     where
@@ -489,7 +563,9 @@ where
         self.inner.sort_unstable_by(cmp);
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn sorted_unstable_by<F>(self, cmp: F) -> IntoIter<K, V>
     where
@@ -499,7 +575,9 @@ where
         IntoIter { inner }
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[inline]
     pub fn reverse(&mut self) {
         self.inner.reverse();
@@ -598,46 +676,58 @@ impl<'a, K, V, S> IntoIterator for &'a mut Map<K, V, S> {
     }
 }
 
+impl<K, V, S> FromIterator<(K, V)> for Map<K, V, S>
+where
+    K: Eq + Hash,
+    S: BuildHasher + Default,
+{
+    #[inline]
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let inner = MapImpl::<K, V, S>::from_iter(iter);
+        Map { inner }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub enum Entry<'a, K, V, S> {
+    /// TODO
     Occupied(OccupiedEntry<'a, K, V, S>),
+    /// TODO
     Vacant(VacantEntry<'a, K, V, S>),
 }
 
+#[cfg(feature = "preserve_order")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
+impl<'a, K, V, S> From<indexmap::map::Entry<'a, K, V>> for Entry<'a, K, V, S> {
+    fn from(inner: indexmap::map::Entry<'a, K, V>) -> Self {
+        match inner {
+            EntryImpl::Occupied(inner) => Entry::Occupied(OccupiedEntry {
+                inner,
+                marker: PhantomData,
+            }),
+            EntryImpl::Vacant(inner) => Entry::Vacant(VacantEntry {
+                inner,
+                marker: PhantomData,
+            }),
+        }
+    }
+}
+
+#[cfg(not(feature = "preserve_order"))]
+#[cfg_attr(doc_cfg, doc(cfg(not(feature = "preserve_order"))))]
+impl<'a, K, V, S> From<hashbrown::hash_map::Entry<'a, K, V, S>> for Entry<'a, K, V, S> {
+    fn from(inner: hashbrown::hash_map::Entry<'a, K, V, S>) -> Self {
+        match inner {
+            EntryImpl::Occupied(inner) => Entry::Occupied(OccupiedEntry { inner }),
+            EntryImpl::Vacant(inner) => Entry::Vacant(VacantEntry { inner }),
+        }
+    }
+}
+
 impl<'a, K, V, S> Entry<'a, K, V, S> {
-    #[cfg(feature = "preserve_order")]
-    #[must_use]
-    #[inline]
-    fn new(inner: EntryImpl<'a, K, V>) -> Self {
-        match inner {
-            EntryImpl::Occupied(inner) => Entry::Occupied(OccupiedEntry {
-                inner,
-                marker: PhantomData,
-            }),
-            EntryImpl::Vacant(inner) => Entry::Vacant(VacantEntry {
-                inner,
-                marker: PhantomData,
-            }),
-        }
-    }
-
-    #[cfg(not(feature = "preserve_order"))]
-    #[must_use]
-    #[inline]
-    fn new(inner: EntryImpl<'a, K, V, S>) -> Self {
-        match inner {
-            EntryImpl::Occupied(inner) => Entry::Occupied(OccupiedEntry {
-                inner,
-                marker: PhantomData,
-            }),
-            EntryImpl::Vacant(inner) => Entry::Vacant(VacantEntry {
-                inner,
-                marker: PhantomData,
-            }),
-        }
-    }
-
+    /// TODO
     #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
@@ -647,7 +737,9 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn index(&self) -> usize {
@@ -657,6 +749,7 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[inline]
     pub fn or_insert(self, default: V) -> &'a mut V
     where
@@ -669,6 +762,7 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[inline]
     pub fn or_insert_with<F>(self, f: F) -> &'a mut V
     where
@@ -682,6 +776,7 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[inline]
     pub fn or_insert_with_key<F>(self, f: F) -> &'a mut V
     where
@@ -698,6 +793,7 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[inline]
     pub fn or_default(self) -> &'a mut V
     where
@@ -711,6 +807,7 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
         }
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn and_modify<F>(self, op: F) -> Self
@@ -729,55 +826,66 @@ impl<'a, K, V, S> Entry<'a, K, V, S> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct OccupiedEntry<'a, K, V, S> {
     #[cfg(feature = "preserve_order")]
     inner: OccupiedEntryImpl<'a, K, V>,
     #[cfg(not(feature = "preserve_order"))]
     inner: OccupiedEntryImpl<'a, K, V, S>,
+    #[cfg(feature = "preserve_order")]
     marker: PhantomData<*const S>,
 }
 
 impl<'a, K, V, S> OccupiedEntry<'a, K, V, S> {
+    /// TODO
     #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
         self.inner.key()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get(&self) -> &V {
         self.inner.get()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn get_mut(&mut self) -> &mut V {
         self.inner.get_mut()
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn index(&self) -> usize {
         self.inner.index()
     }
 
+    /// TODO
     #[inline]
     pub fn into_mut(self) -> &'a mut V {
         self.inner.into_mut()
     }
 
+    /// TODO
     #[inline]
     pub fn insert(&mut self, value: V) -> V {
         self.inner.insert(value)
     }
 
+    /// TODO
     #[inline]
     pub fn remove(self) -> V {
         self.inner.remove()
     }
 
+    /// TODO
     #[inline]
     pub fn swap_remove(self) -> V {
         #[cfg(feature = "preserve_order")]
@@ -786,6 +894,7 @@ impl<'a, K, V, S> OccupiedEntry<'a, K, V, S> {
         return self.inner.remove();
     }
 
+    /// TODO
     #[inline]
     pub fn shift_remove(self) -> V {
         #[cfg(feature = "preserve_order")]
@@ -794,11 +903,13 @@ impl<'a, K, V, S> OccupiedEntry<'a, K, V, S> {
         return self.inner.remove();
     }
 
+    /// TODO
     #[inline]
     pub fn remove_entry(self) -> (K, V) {
         self.inner.remove_entry()
     }
 
+    /// TODO
     #[inline]
     pub fn swap_remove_entry(self) -> (K, V) {
         #[cfg(feature = "preserve_order")]
@@ -807,6 +918,7 @@ impl<'a, K, V, S> OccupiedEntry<'a, K, V, S> {
         return self.inner.remove_entry();
     }
 
+    /// TODO
     #[inline]
     pub fn shift_remove_entry(self) -> (K, V) {
         #[cfg(feature = "preserve_order")]
@@ -818,34 +930,41 @@ impl<'a, K, V, S> OccupiedEntry<'a, K, V, S> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct VacantEntry<'a, K, V, S> {
     #[cfg(feature = "preserve_order")]
     inner: VacantEntryImpl<'a, K, V>,
     #[cfg(not(feature = "preserve_order"))]
     inner: VacantEntryImpl<'a, K, V, S>,
+    #[cfg(feature = "preserve_order")]
     marker: PhantomData<*const S>,
 }
 
 impl<'a, K, V, S> VacantEntry<'a, K, V, S> {
+    /// TODO
     #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
         self.inner.key()
     }
 
+    /// TODO
     #[must_use]
     #[inline]
     pub fn into_key(self) -> K {
         self.inner.into_key()
     }
 
+    /// TODO
     #[cfg(feature = "preserve_order")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "preserve_order")))]
     #[must_use]
     #[inline]
     pub fn index(&self) -> usize {
         self.inner.index()
     }
 
+    /// TODO
     #[inline]
     pub fn insert(self, value: V) -> &'a mut V
     where
@@ -896,6 +1015,7 @@ macro_rules! delegate_iterator {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct Iter<'a, K, V> {
     inner: IterImpl<'a, K, V>,
 }
@@ -904,6 +1024,7 @@ delegate_iterator!((Iter<'a, K, V>) => (&'a K, &'a V));
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct IterMut<'a, K, V> {
     inner: IterMutImpl<'a, K, V>,
 }
@@ -912,6 +1033,7 @@ delegate_iterator!((IterMut<'a, K, V>) => (&'a K, &'a mut V));
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct IntoIter<K, V> {
     inner: IntoIterImpl<K, V>,
 }
@@ -920,6 +1042,7 @@ delegate_iterator!((IntoIter<K, V>) => (K, V));
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct Keys<'a, K, V> {
     inner: KeysImpl<'a, K, V>,
 }
@@ -928,6 +1051,7 @@ delegate_iterator!((Keys<'a, K, V>) => &'a K);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct IntoKeys<K, V> {
     inner: IntoKeysImpl<K, V>,
 }
@@ -936,6 +1060,7 @@ delegate_iterator!((IntoKeys<K, V>) => K);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct Values<'a, K, V> {
     inner: ValuesImpl<'a, K, V>,
 }
@@ -944,6 +1069,7 @@ delegate_iterator!((Values<'a, K, V>) => &'a V);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct ValuesMut<'a, K, V> {
     inner: ValuesMutImpl<'a, K, V>,
 }
@@ -952,6 +1078,7 @@ delegate_iterator!((ValuesMut<'a, K, V>) => &'a mut V);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct IntoValues<K, V> {
     inner: IntoValuesImpl<K, V>,
 }
@@ -960,6 +1087,7 @@ delegate_iterator!((IntoValues<K, V>) => V);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// TODO
 pub struct Drain<'a, K, V> {
     inner: DrainImpl<'a, K, V>,
 }
